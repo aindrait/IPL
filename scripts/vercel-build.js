@@ -5,9 +5,21 @@ async function main() {
   console.log('Starting Vercel build process...');
 
   try {
+    // Copy production schema to main schema file
+    console.log('Setting up production schema...');
+    if (process.platform === 'win32') {
+      execSync('copy prisma\\schema.prisma.production prisma\\schema.prisma', { stdio: 'inherit' });
+    } else {
+      execSync('cp prisma/schema.prisma.production prisma/schema.prisma', { stdio: 'inherit' });
+    }
+
     // Generate Prisma Client
     console.log('Generating Prisma Client...');
     execSync('npx prisma generate', { stdio: 'inherit' });
+
+    // Build Next.js application
+    console.log('Building Next.js application...');
+    execSync('npx next build', { stdio: 'inherit' });
 
     // Try to connect to the database and check if tables exist
     console.log('Checking database connection...');
