@@ -58,7 +58,6 @@ server.log
 /docs
 /prisma/*.csv
 /prisma/*.xlsx
-/scripts
 /public/uploads/*.jpg
 
 #supabase pass: avb.DX.!2T9Lpxb
