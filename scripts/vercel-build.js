@@ -6,16 +6,27 @@ async function main() {
   console.log('Starting Vercel build process...');
 
   try {
+    // Load Vercel environment variables for testing
+    const vercelEnv = dotenv.config({ path: '.env.vercel' });
+    
+    // Set environment variables for Prisma
+    if (vercelEnv.parsed) {
+      process.env.DATABASE_URL = vercelEnv.parsed.DATABASE_URL;
+    }
+
     // Check if we have the required environment variables
-    if (!process.env.POSTGRES_PRISMA_URL) {
-      console.log('POSTGRES_PRISMA_URL not found in environment variables');
+    if (!process.env.DATABASE_URL) {
+      console.log('DATABASE_URL not found in environment variables');
       console.log('This is expected in local development. In Vercel, make sure to set this variable in the dashboard.');
       process.exit(0);
     }
 
     // Generate Prisma Client with production schema
     console.log('Generating Prisma Client...');
-    execSync('npx prisma generate --schema=prisma/schema.prisma.production', { stdio: 'inherit' });
+    execSync('npx prisma generate --schema=prisma/schema.prisma.production', {
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
+    });
 
     // Build Next.js application
     console.log('Building Next.js application...');
@@ -26,7 +37,7 @@ async function main() {
     const prisma = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.POSTGRES_PRISMA_URL
+          url: process.env.DATABASE_URL
         }
       }
     });
@@ -39,10 +50,10 @@ async function main() {
       try {
         await prisma.user.findFirst();
         console.log('Database tables already exist, running pending migrations...');
-        execSync('npx prisma migrate deploy --schema=prisma/schema.prisma.production', { stdio: 'inherit' });
+        execSync('npx prisma db push --schema=prisma/schema.prisma.production --accept-data-loss', { stdio: 'inherit' });
       } catch (error) {
         console.log('Database tables do not exist, running initial migration...');
-        execSync('npx prisma migrate deploy --schema=prisma/schema.prisma.production', { stdio: 'inherit' });
+        execSync('npx prisma db push --schema=prisma/schema.prisma.production --accept-data-loss', { stdio: 'inherit' });
       }
     } catch (error) {
       console.log('Database connection failed, skipping migration');
