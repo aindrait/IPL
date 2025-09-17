@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+dev.db
+/prisma/db/
+
 # vercel
 .vercel
 
@@ -52,3 +59,6 @@ server.log
 /prisma/*.csv
 /prisma/*.xlsx
 /scripts
+/public/uploads/*.jpg
+
+#supabase pass: avb.DX.!2T9Lpxb
