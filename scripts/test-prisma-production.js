@@ -1,26 +1,23 @@
 const { PrismaClient } = require('@prisma/client');
-const dotenv = require('dotenv');
 
 async function testPrismaProduction() {
   console.log('Testing Prisma with production environment...');
   
-  // Load Vercel environment variables for testing
-  const vercelEnv = dotenv.config({ path: '.env.vercel' });
-  
-  // Set environment variables
-  if (vercelEnv.parsed) {
-    process.env.POSTGRES_PRISMA_URL = vercelEnv.parsed.POSTGRES_PRISMA_URL;
-    process.env.DATABASE_URL = vercelEnv.parsed.DATABASE_URL;
+  // Check if DATABASE_URL is available
+  if (!process.env.DATABASE_URL) {
+    console.log('DATABASE_URL not found in environment variables');
+    console.log('Please set DATABASE_URL environment variable before running this script');
+    process.exit(1);
   }
   
-  console.log('Environment variables loaded from .env.vercel');
-  console.log('Connection string (masked):', process.env.POSTGRES_PRISMA_URL.replace(/:[^:]*@/, ':***@'));
+  console.log('Environment variables loaded');
+  console.log('Connection string (masked):', process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@'));
   
   // Create Prisma client with production schema
   const prisma = new PrismaClient({
     datasources: {
       db: {
-        url: process.env.POSTGRES_PRISMA_URL
+        url: process.env.DATABASE_URL
       }
     }
   });
@@ -84,7 +81,7 @@ async function testPrismaProduction() {
       const { execSync } = require('child_process');
       execSync('npx prisma db push --schema=prisma/schema.prisma.production --accept-data-loss', {
         stdio: 'inherit',
-        env: { ...process.env, POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL }
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
       });
       console.log('✅ Prisma db push completed');
     } catch (error) {

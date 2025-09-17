@@ -1,19 +1,10 @@
 const { execSync } = require('child_process');
 const { PrismaClient } = require('@prisma/client');
-const dotenv = require('dotenv');
 
 async function main() {
   console.log('Starting Vercel build process...');
 
   try {
-    // Load Vercel environment variables for testing
-    const vercelEnv = dotenv.config({ path: '.env.vercel' });
-    
-    // Set environment variables for Prisma
-    if (vercelEnv.parsed) {
-      process.env.DATABASE_URL = vercelEnv.parsed.DATABASE_URL;
-    }
-
     // Check if we have the required environment variables
     if (!process.env.DATABASE_URL) {
       console.log('DATABASE_URL not found in environment variables');
