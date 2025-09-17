@@ -5,17 +5,9 @@ async function main() {
   console.log('Starting Vercel build process...');
 
   try {
-    // Copy production schema to main schema file
-    console.log('Setting up production schema...');
-    if (process.platform === 'win32') {
-      execSync('copy prisma\\schema.prisma.production prisma\\schema.prisma', { stdio: 'inherit' });
-    } else {
-      execSync('cp prisma/schema.prisma.production prisma/schema.prisma', { stdio: 'inherit' });
-    }
-
-    // Generate Prisma Client
+    // Generate Prisma Client with production schema
     console.log('Generating Prisma Client...');
-    execSync('npx prisma generate', { stdio: 'inherit' });
+    execSync('npx prisma generate --schema=prisma/schema.prisma.production', { stdio: 'inherit' });
 
     // Build Next.js application
     console.log('Building Next.js application...');
@@ -23,7 +15,13 @@ async function main() {
 
     // Try to connect to the database and check if tables exist
     console.log('Checking database connection...');
-    const prisma = new PrismaClient();
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: process.env.POSTGRES_PRISMA_URL
+        }
+      }
+    });
     
     try {
       await prisma.$connect();
@@ -35,7 +33,7 @@ async function main() {
         console.log('Database tables already exist, skipping migration');
       } catch (error) {
         console.log('Database tables do not exist, running migration...');
-        execSync('npx prisma db push', { stdio: 'inherit' });
+        execSync('npx prisma db push --schema=prisma/schema.prisma.production', { stdio: 'inherit' });
       }
     } catch (error) {
       console.log('Database connection failed, skipping migration');
