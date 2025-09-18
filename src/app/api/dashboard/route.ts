@@ -12,6 +12,9 @@ const defaultSettings = {
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  console.log('Dashboard API: Starting data fetch (OPTIMIZED)')
+  
   try {
     // Get payment settings
     let paymentSettings = defaultSettings
@@ -35,11 +38,6 @@ export async function GET(request: NextRequest) {
       console.log('Using default payment settings for dashboard')
     }
 
-    // Get total residents count
-    const totalResidents = await db.resident.count({
-      where: { is_active: true }
-    })
-
     // Get current active period (current month)
     const now = new Date()
     const currentMonth = now.getMonth() + 1
@@ -61,22 +59,43 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get payment statistics based on schedule items for current period
+    // OPTIMIZED: Get all dashboard statistics in a single query using aggregation
+    const statsStartTime = Date.now()
+    
+    // Get total residents count
+    const totalResidents = await db.resident.count({
+      where: { is_active: true }
+    })
+
+    // Initialize statistics
     let totalPaid = 0
     let totalPending = 0
     let totalOverdue = 0
+    let collectionRate = 0
 
     if (currentPeriod) {
-      // Count residents who have paid for current period
-      const paidResidents = await db.paymentScheduleItem.count({
+      // OPTIMIZED: Get payment statistics with a single aggregation query
+      const paymentStats = await db.paymentScheduleItem.groupBy({
+        by: ['status'],
         where: {
-          period_id: currentPeriod.id,
-          status: 'PAID'
+          period_id: currentPeriod.id
+        },
+        _count: {
+          status: true
+        },
+        _sum: {
+          amount: true
         }
       })
 
-      // Count residents with pending payments for current period
-      const pendingResidents = await db.paymentScheduleItem.count({
+      // Calculate statistics from grouped results
+      const statsMap = new Map(paymentStats.map(stat => [stat.status, stat]))
+      totalPaid = statsMap.get('PAID')?._count.status || 0
+      const totalScheduled = paymentStats.reduce((sum, stat) => sum + stat._count.status, 0) - (statsMap.get('SKIPPED')?._count.status || 0)
+      collectionRate = totalScheduled > 0 ? Math.round((totalPaid / totalScheduled) * 100) : 0
+
+      // Get pending payments (those with PENDING payment status)
+      const pendingCount = await db.paymentScheduleItem.count({
         where: {
           period_id: currentPeriod.id,
           payment: {
@@ -84,10 +103,10 @@ export async function GET(request: NextRequest) {
           }
         }
       })
+      totalPending = pendingCount
 
-      // Count residents who are overdue (have schedule items but no payment and past due date)
-      const now = new Date()
-      const overdueResidents = await db.paymentScheduleItem.count({
+      // Get overdue count using the optimized index
+      totalOverdue = await db.paymentScheduleItem.count({
         where: {
           period_id: currentPeriod.id,
           status: { not: 'PAID' },
@@ -95,59 +114,62 @@ export async function GET(request: NextRequest) {
           payment: null
         }
       })
-
-      totalPaid = paidResidents
-      totalPending = pendingResidents
-      totalOverdue = overdueResidents
     }
 
-    // Compute total income by summing verified and manual paid payments (more reliable approach)
+    // Compute total income by summing verified and manual paid payments
     const incomeAgg = await db.payment.aggregate({
       where: { status: { in: ['VERIFIED', 'MANUAL_PAID'] } },
       _sum: { amount: true }
     })
     const totalIncome = incomeAgg._sum.amount || 0
-    
-    // Calculate collection rate based on schedule items for current period
-    let collectionRate = 0
-    if (currentPeriod) {
-      const totalScheduled = await db.paymentScheduleItem.count({
-        where: {
-          period_id: currentPeriod.id,
-          status: { not: 'SKIPPED' }
-        }
-      })
-      collectionRate = totalScheduled > 0 ? Math.round((totalPaid / totalScheduled) * 100) : 0
-    }
 
-    // Get recent payments
+    // Get total payment proofs count
+    const totalProofs = await db.paymentProof.count()
+
+    const statsEndTime = Date.now()
+    console.log(`Dashboard API (Optimized): Statistics calculated in ${statsEndTime - statsStartTime}ms`)
+
+    // OPTIMIZED: Get recent payments with optimized includes
+    const recentPaymentsStartTime = Date.now()
     const recentPayments = await db.payment.findMany({
       take: 5,
       orderBy: { created_at: 'desc' },
       include: {
-        resident: true,
+        resident: {
+          select: { id: true, name: true }
+        },
         schedule_items: {
-          include: {
-            period: true
+          select: {
+            period: {
+              select: { name: true }
+            }
           }
         },
-        proofs: true,
-        created_by: true
+        proofs: {
+          select: { id: true }
+        },
+        created_by: {
+          select: { id: true, name: true }
+        }
       }
     })
 
     // Format recent payments for response
     const formattedRecentPayments = recentPayments.map(payment => ({
       id: payment.id,
-      residentName: (payment as any).resident?.name || 'Unknown',
+      residentName: payment.resident?.name || 'Unknown',
       amount: payment.amount,
       payment_date: payment.payment_date.toISOString().split('T')[0],
       status: payment.status,
-      periods: (payment as any).schedule_items?.map((si: any) => si.period?.name).filter(Boolean) || [],
-      hasProof: (payment as any).proofs?.length > 0 || false
+      periods: payment.schedule_items?.map(si => si.period?.name).filter(Boolean) || [],
+      hasProof: payment.proofs?.length > 0 || false
     }))
 
-    // Get unpaid residents for current period (those with overdue schedule items)
+    const recentPaymentsEndTime = Date.now()
+    console.log(`Dashboard API (Optimized): Recent payments fetched in ${recentPaymentsEndTime - recentPaymentsStartTime}ms`)
+
+    // OPTIMIZED: Get unpaid residents for current period
+    const unpaidResidentsStartTime = Date.now()
     const unpaidResidents = currentPeriod ? await db.resident.findMany({
       where: {
         is_active: true,
@@ -165,147 +187,102 @@ export async function GET(request: NextRequest) {
     }) : []
 
     // Calculate days overdue for unpaid residents
-    const formattedUnpaidResidents = unpaidResidents.map(resident => {
-      const daysOverdue = currentPeriod ? 
+    const formattedUnpaidResidents = unpaidResidents.map(resident => ({
+      id: resident.id,
+      name: resident.name,
+      address: resident.address,
+      phone: resident.phone,
+      daysOverdue: currentPeriod ? 
         Math.max(0, Math.floor((new Date().getTime() - new Date(currentPeriod.due_date).getTime()) / (1000 * 60 * 60 * 24))) : 
         0
-      
-      return {
-        id: resident.id,
-        name: resident.name,
-        address: resident.address,
-        phone: resident.phone,
-        daysOverdue
-      }
-    })
+    }))
 
-    // Get total payment proofs count
-    const totalProofs = await db.paymentProof.count()
+    const unpaidResidentsEndTime = Date.now()
+    console.log(`Dashboard API (Optimized): Unpaid residents fetched in ${unpaidResidentsEndTime - unpaidResidentsStartTime}ms`)
 
-    // Get tunggakan (overdue) statistics per RT and RW
+    // OPTIMIZED: Get overdue statistics using a single query instead of N+1
+    const overdueStartTime = Date.now()
     const activeRWs = paymentSettings.rwSettings.activeRWs
     
-    // Get all RTs first, then calculate overdue statistics
-    const allRTs = await db.rT.findMany({
-      where: { 
-        rw: { in: activeRWs },
-        is_active: true 
-      },
-      select: { number: true, rw: true },
-      orderBy: [{ rw: 'asc' }, { number: 'asc' }]
-    })
+    let overdueByRT: any[] = []
+    let overdueByRW: any[] = []
 
-    const overdueByRT = currentPeriod ? await Promise.all(allRTs.map(async (rt) => {
-      // Get residents for this RT
-      const residents = await db.resident.findMany({
-        where: { 
-          rt: rt.number, 
-          rw: rt.rw, 
-          is_active: true 
-        },
-        select: { id: true }
-      })
+    if (currentPeriod) {
+      // OPTIMIZED: Get all overdue statistics in a single query using SQL aggregation
+      const overdueStats = await db.$queryRaw`
+        SELECT 
+          r.rt,
+          r.rw,
+          COUNT(DISTINCT r.id) as total_residents,
+          COUNT(DISTINCT CASE WHEN psi.status != 'PAID' 
+            AND psi.due_date < ${now} 
+            AND psi.payment_id IS NULL 
+            THEN r.id END) as overdue_residents,
+          COALESCE(SUM(CASE WHEN psi.status != 'PAID' 
+            AND psi.due_date < ${now} 
+            AND psi.payment_id IS NULL 
+            THEN psi.amount END), 0) as overdue_amount
+        FROM residents r
+        LEFT JOIN payment_schedule_items psi ON r.id = psi.resident_id 
+          AND psi.period_id = ${currentPeriod.id}
+        WHERE r.is_active = true 
+          AND r.rw = ANY(${activeRWs})
+        GROUP BY r.rt, r.rw
+        ORDER BY r.rw, r.rt
+      ` as Array<{
+        rt: number
+        rw: number
+        total_residents: number
+        overdue_residents: number
+        overdue_amount: number
+      }>
 
-      const residentIds = residents.map(r => r.id)
-      
-      if (residentIds.length === 0) {
-        // RT has no residents
-        return {
-          rt: rt.number,
-          rw: rt.rw,
-          totalResidents: 0,
-          overdueResidents: 0,
-          overdueAmount: 0
+      // Transform results for RT level
+      overdueByRT = overdueStats.map(stat => ({
+        rt: stat.rt,
+        rw: stat.rw,
+        totalResidents: Number(stat.total_residents),
+        overdueResidents: Number(stat.overdue_residents),
+        overdueAmount: Number(stat.overdue_amount)
+      }))
+
+      // Aggregate by RW level
+      const rwAggregates = new Map<number, {
+        totalResidents: number
+        overdueResidents: number
+        overdueAmount: number
+      }>()
+
+      overdueStats.forEach(stat => {
+        const rwKey = stat.rw
+        if (!rwAggregates.has(rwKey)) {
+          rwAggregates.set(rwKey, {
+            totalResidents: 0,
+            overdueResidents: 0,
+            overdueAmount: 0
+          })
         }
-      }
-
-      // Get overdue statistics for this RT
-      const totalResidents = residents.length
-      
-      // Count overdue residents (those with unpaid schedule items past due date)
-      const overdueResidents = await db.paymentScheduleItem.count({
-        where: {
-          resident_id: { in: residentIds },
-          period_id: currentPeriod.id,
-          status: { not: 'PAID' },
-          due_date: { lt: new Date() },
-          payment: null
-        }
-      })
-      
-      // Calculate overdue amount
-      const overdueAmountResult = await db.paymentScheduleItem.aggregate({
-        where: {
-          resident_id: { in: residentIds },
-          period_id: currentPeriod.id,
-          status: { not: 'PAID' },
-          due_date: { lt: new Date() },
-          payment: null
-        },
-        _sum: { amount: true }
-      })
-      
-      return {
-        rt: rt.number,
-        rw: rt.rw,
-        totalResidents,
-        overdueResidents,
-        overdueAmount: Number(overdueAmountResult._sum.amount) || 0
-      }
-    })) : []
-
-    const overdueByRW = currentPeriod ? await Promise.all(activeRWs.map(async (rw) => {
-      // Get all residents for this RW
-      const rwResidents = await db.resident.findMany({
-        where: { 
-          rw: rw, 
-          is_active: true 
-        },
-        select: { id: true }
+        const rwData = rwAggregates.get(rwKey)!
+        rwData.totalResidents += Number(stat.total_residents)
+        rwData.overdueResidents += Number(stat.overdue_residents)
+        rwData.overdueAmount += Number(stat.overdue_amount)
       })
 
-      const residentIds = rwResidents.map(r => r.id)
-      
-      if (residentIds.length === 0) {
-        return {
-          rw: rw,
-          totalResidents: 0,
-          overdueResidents: 0,
-          overdueAmount: 0
-        }
-      }
+      overdueByRW = Array.from(rwAggregates.entries()).map(([rw, data]) => ({
+        rw,
+        totalResidents: data.totalResidents,
+        overdueResidents: data.overdueResidents,
+        overdueAmount: data.overdueAmount
+      }))
+    }
 
-      // Count overdue residents for this RW
-      const overdueResidents = await db.paymentScheduleItem.count({
-        where: {
-          resident_id: { in: residentIds },
-          period_id: currentPeriod.id,
-          status: { not: 'PAID' },
-          due_date: { lt: new Date() },
-          payment: null
-        }
-      })
-      
-      // Calculate overdue amount for this RW
-      const overdueAmountResult = await db.paymentScheduleItem.aggregate({
-        where: {
-          resident_id: { in: residentIds },
-          period_id: currentPeriod.id,
-          status: { not: 'PAID' },
-          due_date: { lt: new Date() },
-          payment: null
-        },
-        _sum: { amount: true }
-      })
-      
-      return {
-        rw: rw,
-        totalResidents: residentIds.length,
-        overdueResidents,
-        overdueAmount: Number(overdueAmountResult._sum.amount) || 0
-      }
-    })) : []
+    const overdueEndTime = Date.now()
+    console.log(`Dashboard API (Optimized): Overdue calculations completed in ${overdueEndTime - overdueStartTime}ms`)
 
+    const endTime = Date.now()
+    const totalTime = endTime - startTime
+    console.log(`Dashboard API (Optimized): Total execution time: ${totalTime}ms`)
+    
     return NextResponse.json({
       stats: {
         totalResidents,
@@ -330,10 +307,20 @@ export async function GET(request: NextRequest) {
       recentPayments: formattedRecentPayments,
       unpaidResidents: formattedUnpaidResidents,
       overdueByRT: overdueByRT,
-      overdueByRW: overdueByRW
+      overdueByRW: overdueByRW,
+      debug: {
+        executionTime: totalTime,
+        statsCalculationTime: statsEndTime - statsStartTime,
+        recentPaymentsTime: recentPaymentsEndTime - recentPaymentsStartTime,
+        unpaidResidentsTime: unpaidResidentsEndTime - unpaidResidentsStartTime,
+        overdueCalculationTime: overdueEndTime - overdueStartTime,
+        isOptimized: true
+      }
     })
   } catch (error) {
-    console.error('Error fetching dashboard data:', error)
+    const endTime = Date.now()
+    const totalTime = endTime - startTime
+    console.error(`Error fetching dashboard data after ${totalTime}ms:`, error)
     return NextResponse.json(
       { error: 'Gagal mengambil data dashboard' },
       { status: 500 }
