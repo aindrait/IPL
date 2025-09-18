@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
         // Check if payment index already exists
         // Using raw query since Prisma client might not be updated
         const existingPaymentIndex = await db.$queryRaw`
-          SELECT id FROM residents WHERE paymentIndex = ${paymentIndex} LIMIT 1
+          SELECT id FROM residents WHERE "paymentIndex" = ${paymentIndex} LIMIT 1
         ` as any[]
 
         if (existingPaymentIndex && existingPaymentIndex.length > 0) {
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
     // If payment index is explicitly provided, check if it already exists
     if (paymentIndex) {
       const existingPaymentIndex = await db.$queryRaw`
-        SELECT id FROM residents WHERE paymentIndex = ${paymentIndex} LIMIT 1
+        SELECT id FROM residents WHERE "paymentIndex" = ${paymentIndex} LIMIT 1
       ` as any[]
 
       if (existingPaymentIndex && existingPaymentIndex.length > 0) {
@@ -253,17 +253,17 @@ export async function POST(request: NextRequest) {
     // Use raw SQL to create resident since Prisma client might not be updated
     const resident = await db.$queryRaw`
       INSERT INTO residents (
-        id, name, address, phone, email, rt, rw, blok, houseNumber, paymentIndex, ownership,
-        isActive, createdAt, updatedAt, createdById, rtId
+        id, name, address, phone, email, rt, rw, blok, "houseNumber", "paymentIndex", ownership,
+        "isActive", "createdAt", "updatedAt", "createdById", "rtId"
       ) VALUES (
-        lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+        gen_random_uuid(),
         ${data.name}, ${data.address}, ${data.phone},
         ${data.email === '' ? null : data.email || null}, ${rtNumber}, ${rwNumber},
         ${data.blok || null}, ${data.houseNumber || null},
-        ${paymentIndex || null}, ${data.ownership || null}, 1, datetime('now'), datetime('now'), ${systemUser.id}, ${rtId}
+        ${paymentIndex || null}, ${data.ownership || null}, 1, NOW(), NOW(), ${systemUser.id}, ${rtId}
       )
-      RETURNING id, name, address, phone, email, rt, rw, blok, houseNumber, paymentIndex, ownership,
-      isActive, createdAt, updatedAt, createdById, rtId
+      RETURNING id, name, address, phone, email, rt, rw, blok, "houseNumber", "paymentIndex", ownership,
+      "isActive", "createdAt", "updatedAt", "createdById", "rtId"
     ` as any[]
 
     // Get the created resident

@@ -24,8 +24,8 @@ interface PaymentSettings {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PaymentSettings>({
-    defaultAmount: 250000,
-    dueDate: 5,
+    defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
+    dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
     rwSettings: {
       activeRWs: [12],
       defaultRW: 12
@@ -144,7 +144,7 @@ export default function SettingsPage() {
                   required
                 />
                 <p className="text-sm text-muted-foreground">
-                  Contoh: 250000 (akan ditampilkan sebagai {formatCurrency(250000)})
+                  Contoh: {parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000} (akan ditampilkan sebagai {formatCurrency(parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000)})
                 </p>
               </div>
 

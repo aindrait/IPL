@@ -3,8 +3,8 @@ import { db } from '@/lib/db'
 
 // Default settings
 const defaultSettings = {
-  defaultAmount: 250000,
-  dueDate: 5,
+  defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
+  dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
   rwSettings: {
     activeRWs: [12],
     defaultRW: 12
@@ -172,8 +172,8 @@ export async function GET(request: NextRequest) {
         r.rt,
         r.rw,
         COUNT(DISTINCT r.id) as totalResidents,
-        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < datetime('now') THEN r.id END) as overdueResidents,
-        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < datetime('now') THEN psi.amount ELSE 0 END) as overdueAmount
+        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN r.id END) as overdueResidents,
+        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN psi.amount ELSE 0 END) as overdueAmount
       FROM residents r
       LEFT JOIN payment_schedule_items psi ON r.id = psi.residentId
         AND psi.periodId = ${currentPeriod.id}
@@ -187,8 +187,8 @@ export async function GET(request: NextRequest) {
       SELECT
         r.rw,
         COUNT(DISTINCT r.id) as totalResidents,
-        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < datetime('now') THEN r.id END) as overdueResidents,
-        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < datetime('now') THEN psi.amount ELSE 0 END) as overdueAmount
+        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN r.id END) as overdueResidents,
+        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN psi.amount ELSE 0 END) as overdueAmount
       FROM residents r
       LEFT JOIN payment_schedule_items psi ON r.id = psi.residentId
         AND psi.periodId = ${currentPeriod.id}

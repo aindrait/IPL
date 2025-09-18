@@ -132,8 +132,8 @@ export default function Dashboard() {
       }
 
       const mockPaymentSettings: PaymentSettings = {
-        defaultAmount: 250000,
-        dueDate: 5,
+        defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
+        dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
         rwSettings: {
           activeRWs: [12],
           defaultRW: 12
@@ -382,23 +382,23 @@ export default function Dashboard() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Periode</p>
-              <p className="text-lg font-semibold">{stats?.currentPeriod.name}</p>
+              <p className="text-lg font-semibold">{stats?.currentPeriod?.name || 'Tidak ada periode aktif'}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Iuran per Warga</p>
               <p className="text-lg font-semibold">
-                {paymentSettings ? formatCurrency(paymentSettings.defaultAmount) : (stats ? formatCurrency(stats.currentPeriod.amount) : '-')}
+                {paymentSettings ? formatCurrency(paymentSettings.defaultAmount) : (stats?.currentPeriod?.amount ? formatCurrency(stats.currentPeriod.amount) : '-')}
               </p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Batas Pembayaran</p>
-              <p className="text-lg font-semibold">{stats?.currentPeriod.dueDate}</p>
+              <p className="text-lg font-semibold">{stats?.currentPeriod?.dueDate || '-'}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Tingkat Pencapaian</p>
               <div className="space-y-3">
-                <Progress value={stats?.collectionRate} className="w-full h-2" />
-                <p className="text-sm font-medium">{stats?.collectionRate}%</p>
+                <Progress value={stats?.collectionRate || 0} className="w-full h-2" />
+                <p className="text-sm font-medium">{stats?.collectionRate || 0}%</p>
               </div>
             </div>
           </div>

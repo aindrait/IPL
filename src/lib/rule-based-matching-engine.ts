@@ -489,7 +489,13 @@ export class RuleBasedMatchingEngine {
 
   private evaluatePaymentIndexCondition(node: RuleConditionNode, transaction: any): boolean {
     // Extract payment index from amount
-    const baseAmount = 200000
+    // Get base amount from environment variable or use default
+    const baseAmounts = (process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000")
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    const baseAmount = baseAmounts[0] || 250000
+    
     if (transaction.amount <= 0 || baseAmount <= 0) return false
     
     const months = Math.floor(transaction.amount / baseAmount)
@@ -724,7 +730,13 @@ export class RuleBasedMatchingEngine {
   }
 
   private extractPaymentIndex(amount: number): number | null {
-    const baseAmount = 250000
+    // Get base amount from environment variable or use default
+    const baseAmounts = (process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000")
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    const baseAmount = baseAmounts[0] || 250000
+    
     if (amount <= 0 || baseAmount <= 0) return null
     
     const months = Math.floor(amount / baseAmount)

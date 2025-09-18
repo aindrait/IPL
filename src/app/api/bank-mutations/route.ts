@@ -22,12 +22,12 @@ export async function GET(request: NextRequest) {
     const params: any[] = []
 
     if (year) {
-      whereClauses.push(`COALESCE(strftime('%Y', bm.transactionDate), strftime('%Y', datetime(bm.transactionDate, 'unixepoch')), strftime('%Y', datetime(bm.transactionDate/1000, 'unixepoch'))) = ?`)
+      whereClauses.push(`EXTRACT(YEAR FROM bm.transactionDate) = $` + (params.length + 1))
       params.push(year)
     }
 
     if (month) {
-      whereClauses.push(`COALESCE(strftime('%m', bm.transactionDate), strftime('%m', datetime(bm.transactionDate, 'unixepoch')), strftime('%m', datetime(bm.transactionDate/1000, 'unixepoch'))) = ?`)
+      whereClauses.push(`EXTRACT(MONTH FROM bm.transactionDate) = $` + (params.length + 1))
       params.push(month)
     }
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      whereClauses.push(`(bm.description LIKE ? OR bm.referenceNumber LIKE ? OR bm.uploadBatch LIKE ?)`)
+      whereClauses.push(`(bm.description LIKE $` + (params.length + 1) + ` OR bm.referenceNumber LIKE $` + (params.length + 2) + ` OR bm.uploadBatch LIKE $` + (params.length + 3) + `)`)
       const s = `%${search}%`
       params.push(s, s, s)
     }
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN residents r ON r.id = bm.matchedResidentId
       ${whereSQL}
       ORDER BY bm.transactionDate DESC, bm.createdAt DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `
 
     const countSQL = `

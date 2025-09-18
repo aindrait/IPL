@@ -306,13 +306,13 @@ export default function ResidentsPage() {
               Tambah Warga
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editingResident ? 'Edit Data Warga' : 'Tambah Warga Baru'}
               </DialogTitle>
               <DialogDescription>
-                {editingResident 
+                {editingResident
                   ? 'Edit informasi data warga yang sudah terdaftar.'
                   : 'Tambahkan warga baru ke dalam sistem.'
                 }
@@ -332,182 +332,195 @@ export default function ResidentsPage() {
                 setSubmitting(false);
               }
             }}>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="name" className="text-right pt-2">
                     Nama
                   </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                    className="col-span-3"
-                    required
-                  />
-                  {hasFieldError('name') && getFieldError('name') && (
-                    <ErrorDisplay message={getFieldError('name') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => handleChange('name', e.target.value)}
+                      required
+                    />
+                    {hasFieldError('name') && getFieldError('name') && (
+                      <p className="text-xs text-red-500">{getFieldError('name')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="address" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="address" className="text-right pt-2">
                     Alamat
                   </Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormDataValues(prev => ({ ...prev, address: e.target.value }))}
-                    className="col-span-3"
-                    required
-                  />
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormDataValues(prev => ({ ...prev, address: e.target.value }))}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="phone" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="phone" className="text-right pt-2">
                     Telepon
                   </Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                    className="col-span-3"
-                    required
-                  />
-                  {hasFieldError('phone') && getFieldError('phone') && (
-                    <ErrorDisplay message={getFieldError('phone') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => handleChange('phone', e.target.value)}
+                      required
+                    />
+                    {hasFieldError('phone') && getFieldError('phone') && (
+                      <p className="text-xs text-red-500">{getFieldError('phone')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="email" className="text-right pt-2">
                     Email
                   </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    className="col-span-3"
-                  />
-                  {hasFieldError('email') && getFieldError('email') && (
-                    <ErrorDisplay message={getFieldError('email') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => handleChange('email', e.target.value)}
+                    />
+                    {hasFieldError('email') && getFieldError('email') && (
+                      <p className="text-xs text-red-500">{getFieldError('email')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="rt" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="rt" className="text-right pt-2">
                     RT
                   </Label>
-                  <Select
-                    value={formData.rtId || ''}
-                    onValueChange={(value) => {
-                      const selected = rts.find((r) => r.id === value)
-                      setFormDataValues(prev => ({
-                        ...prev,
-                        rtId: value,
-                        rt: selected ? selected.number : prev.rt,
-                        rw: selected ? selected.rw : prev.rw,
-                      }))
-                    }}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Pilih RT" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rts.map((rt: any) => (
-                        <SelectItem key={rt.id} value={rt.id}>
-                          RT {rt.number}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3 space-y-1">
+                    <Select
+                      value={formData.rtId || ''}
+                      onValueChange={(value) => {
+                        const selected = rts.find((r) => r.id === value)
+                        setFormDataValues(prev => ({
+                          ...prev,
+                          rtId: value,
+                          rt: selected ? selected.number : prev.rt,
+                          rw: selected ? selected.rw : prev.rw,
+                        }))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih RT" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rts.map((rt: any) => (
+                          <SelectItem key={rt.id} value={rt.id}>
+                            RT {rt.number}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="rw" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="rw" className="text-right pt-2">
                     RW
                   </Label>
-                  <Select
-                    value={formData.rw.toString()}
-                    onValueChange={(value) => {
-                      setFormDataValues(prev => ({
-                        ...prev,
-                        rw: parseInt(value),
-                        rt: 1, // Reset RT when RW changes
-                        rtId: undefined
-                      }))
-                    }}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 20 }, (_, i) => i + 1).map((rw) => (
-                        <SelectItem key={rw} value={rw.toString()}>
-                          {rw}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3 space-y-1">
+                    <Select
+                      value={formData.rw.toString()}
+                      onValueChange={(value) => {
+                        setFormDataValues(prev => ({
+                          ...prev,
+                          rw: parseInt(value),
+                          rt: 1, // Reset RT when RW changes
+                          rtId: undefined
+                        }))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 20 }, (_, i) => i + 1).map((rw) => (
+                          <SelectItem key={rw} value={rw.toString()}>
+                            {rw}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="blok" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="blok" className="text-right pt-2">
                     BLOK
                   </Label>
-                  <Input
-                    id="blok"
-                    value={formData.blok || ''}
-                    onChange={(e) => handleChange('blok', e.target.value)}
-                    className="col-span-3"
-                    placeholder="e.g., C11"
-                  />
-                  {hasFieldError('blok') && getFieldError('blok') && (
-                    <ErrorDisplay message={getFieldError('blok') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="blok"
+                      value={formData.blok || ''}
+                      onChange={(e) => handleChange('blok', e.target.value)}
+                      placeholder="e.g., C11"
+                    />
+                    {hasFieldError('blok') && getFieldError('blok') && (
+                      <p className="text-xs text-red-500">{getFieldError('blok')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="houseNumber" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="houseNumber" className="text-right pt-2">
                     No. Rumah
                   </Label>
-                  <Input
-                    id="houseNumber"
-                    value={formData.houseNumber || ''}
-                    onChange={(e) => handleChange('houseNumber', e.target.value)}
-                    className="col-span-3"
-                    placeholder="e.g., 9"
-                  />
-                  {hasFieldError('houseNumber') && getFieldError('houseNumber') && (
-                    <ErrorDisplay message={getFieldError('houseNumber') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="houseNumber"
+                      value={formData.houseNumber || ''}
+                      onChange={(e) => handleChange('houseNumber', e.target.value)}
+                      placeholder="e.g., 9"
+                    />
+                    {hasFieldError('houseNumber') && getFieldError('houseNumber') && (
+                      <p className="text-xs text-red-500">{getFieldError('houseNumber')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="paymentIndex" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="paymentIndex" className="text-right pt-2">
                     Index Bayar
                   </Label>
-                  <Input
-                    id="paymentIndex"
-                    type="number"
-                    value={formData.paymentIndex || ''}
-                    onChange={(e) => handleChange('paymentIndex', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="col-span-3"
-                    placeholder="e.g., 1109"
-                  />
-                  {hasFieldError('paymentIndex') && getFieldError('paymentIndex') && (
-                    <ErrorDisplay message={getFieldError('paymentIndex') || ''} />
-                  )}
+                  <div className="col-span-3 space-y-1">
+                    <Input
+                      id="paymentIndex"
+                      type="number"
+                      value={formData.paymentIndex || ''}
+                      onChange={(e) => handleChange('paymentIndex', e.target.value ? parseInt(e.target.value) : undefined)}
+                      placeholder="e.g., 1109"
+                    />
+                    {hasFieldError('paymentIndex') && getFieldError('paymentIndex') && (
+                      <p className="text-xs text-red-500">{getFieldError('paymentIndex')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ownership" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-2">
+                  <Label htmlFor="ownership" className="text-right pt-2">
                     Kepemilikan Rumah
                   </Label>
-                  <Select
-                    value={formData.ownership || ''}
-                    onValueChange={(value) => handleChange('ownership', value === '' ? null : value)}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Pilih kepemilikan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="empty">-</SelectItem>
-                      <SelectItem value="MILIK">Milik</SelectItem>
-                      <SelectItem value="SEWA">Sewa</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="col-span-3 space-y-1">
+                    <Select
+                      value={formData.ownership || ''}
+                      onValueChange={(value) => handleChange('ownership', value === '' ? null : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih kepemilikan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="empty">-</SelectItem>
+                        <SelectItem value="MILIK">Milik</SelectItem>
+                        <SelectItem value="SEWA">Sewa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               {error && <ErrorDisplay message={error} />}

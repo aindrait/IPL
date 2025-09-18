@@ -74,35 +74,31 @@ export async function GET(request: NextRequest) {
       let whereParams: any[] = [];
       
       if (status && status.trim()) {
-        whereConditions.push('p.status = ?');
+        whereConditions.push('p.status = $' + (whereParams.length + 1));
         whereParams.push(status.trim());
       }
       
       if (search && search.trim()) {
-        whereConditions.push('(r.name LIKE ? OR p.notes LIKE ?)');
+        whereConditions.push('(r.name LIKE $' + (whereParams.length + 1) + ' OR p.notes LIKE $' + (whereParams.length + 2) + ')');
         const searchTerm = `%${search.trim()}%`;
         whereParams.push(searchTerm, searchTerm);
       }
       
       if (residentId && residentId.trim()) {
-        whereConditions.push('p.residentId = ?');
+        whereConditions.push('p.residentId = $' + (whereParams.length + 1));
         whereParams.push(residentId.trim());
       }
       
       // Note: periodId filter removed since payments no longer have direct period relationship
 
       if (rtFilter && rtFilter.trim() && rtFilter.trim() !== 'all') {
-        whereConditions.push('r.rt = ?');
+        whereConditions.push('r.rt = $' + (whereParams.length + 1));
         whereParams.push(parseInt(rtFilter.trim(), 10));
       }
       
       if (yearFilter && yearFilter.trim() && yearFilter.trim() !== 'all') {
         // Robust year extraction: works for TEXT ISO, unix epoch seconds, or milliseconds
-        whereConditions.push(`COALESCE(
-          strftime('%Y', p.paymentDate),
-          strftime('%Y', datetime(p.paymentDate, 'unixepoch')),
-          strftime('%Y', datetime(p.paymentDate/1000, 'unixepoch'))
-        ) = ?`);
+        whereConditions.push(`EXTRACT(YEAR FROM p.paymentDate) = $` + (whereParams.length + 1));
         whereParams.push(yearFilter.trim());
       }
       
@@ -129,8 +125,8 @@ export async function GET(request: NextRequest) {
           r.rt as residentRt,
           r.rw as residentRw,
           (
-            SELECT JSON_GROUP_ARRAY(
-              JSON_OBJECT(
+            SELECT json_agg(
+              json_build_object(
                 'id', psi.id,
                 'type', psi.type,
                 'label', psi.label,
@@ -138,7 +134,7 @@ export async function GET(request: NextRequest) {
                 'amount', psi.amount,
                 'dueDate', psi.dueDate,
                 'paidDate', psi.paidDate,
-                'period', JSON_OBJECT(
+                'period', json_build_object(
                   'id', pp.id,
                   'name', pp.name,
                   'month', pp.month,
@@ -153,8 +149,8 @@ export async function GET(request: NextRequest) {
             WHERE psi.paymentId = p.id
           ) as scheduleItems,
           (
-            SELECT JSON_GROUP_ARRAY(
-              JSON_OBJECT(
+            SELECT json_agg(
+              json_build_object(
                 'id', pr.id,
                 'filename', pr.filename,
                 'filePath', pr.filePath,

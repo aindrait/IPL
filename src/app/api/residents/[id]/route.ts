@@ -145,27 +145,27 @@ export async function PUT(
     const updateValues: any[] = []
 
     if (validatedData.name) {
-      updateFields.push('name = ?')
+      updateFields.push('name = $' + (updateValues.length + 1))
       updateValues.push(validatedData.name)
     }
     if (validatedData.address) {
-      updateFields.push('address = ?')
+      updateFields.push('address = $' + (updateValues.length + 1))
       updateValues.push(validatedData.address)
     }
     if (validatedData.phone) {
-      updateFields.push('phone = ?')
+      updateFields.push('phone = $' + (updateValues.length + 1))
       updateValues.push(validatedData.phone)
     }
     if (validatedData.email !== undefined) {
-      updateFields.push('email = ?')
+      updateFields.push('email = $' + (updateValues.length + 1))
       updateValues.push(validatedData.email === '' ? null : validatedData.email)
     }
     if (validatedData.rt) {
-      updateFields.push('rt = ?')
+      updateFields.push('rt = $' + (updateValues.length + 1))
       updateValues.push(validatedData.rt)
     }
     if (validatedData.rw) {
-      updateFields.push('rw = ?')
+      updateFields.push('rw = $' + (updateValues.length + 1))
       updateValues.push(validatedData.rw)
     }
     if (validatedData.rtId !== undefined) {
@@ -178,34 +178,34 @@ export async function PUT(
             { status: 400 }
           )
         }
-        updateFields.push('rtId = ?')
+        updateFields.push('rtId = $' + (updateValues.length + 1))
         updateValues.push(validatedData.rtId)
-        updateFields.push('rt = ?')
+        updateFields.push('rt = $' + (updateValues.length + 1))
         updateValues.push(rt.number)
-        updateFields.push('rw = ?')
+        updateFields.push('rw = $' + (updateValues.length + 1))
         updateValues.push(rt.rw)
       } else {
         updateFields.push('rtId = NULL')
       }
     }
     if (validatedData.blok !== undefined) {
-      updateFields.push('blok = ?')
+      updateFields.push('blok = $' + (updateValues.length + 1))
       updateValues.push(validatedData.blok)
     }
     if (validatedData.houseNumber !== undefined) {
-      updateFields.push('houseNumber = ?')
+      updateFields.push('houseNumber = $' + (updateValues.length + 1))
       updateValues.push(validatedData.houseNumber)
     }
     if (paymentIndex !== resident.paymentIndex) {
-      updateFields.push('paymentIndex = ?')
+      updateFields.push('paymentIndex = $' + (updateValues.length + 1))
       updateValues.push(paymentIndex)
     }
     if (validatedData.ownership !== undefined) {
-      updateFields.push('ownership = ?')
+      updateFields.push('ownership = $' + (updateValues.length + 1))
       updateValues.push(validatedData.ownership)
     }
     if (validatedData.isActive !== undefined) {
-      updateFields.push('isActive = ?')
+      updateFields.push('isActive = $' + (updateValues.length + 1))
       updateValues.push(validatedData.isActive)
     }
 
@@ -216,7 +216,7 @@ export async function PUT(
       )
     }
 
-    updateFields.push('updatedAt = datetime(\'now\')')
+    updateFields.push('updatedAt = NOW()')
     updateValues.push(id)
 
     // Build the dynamic SQL query
@@ -224,7 +224,7 @@ export async function PUT(
     const updatedResident = await db.$queryRawUnsafe(
       `UPDATE residents
        SET ${setClause}
-       WHERE id = ?
+       WHERE id = $${updateValues.length + 1}
        RETURNING id, name, address, phone, email, rt, rw, blok, houseNumber, paymentIndex, ownership, isActive, createdAt, updatedAt, createdById`,
       ...updateValues
     ) as any[]

@@ -75,7 +75,7 @@ export default function SchedulesPage() {
   const [startMonth, setStartMonth] = useState<number>(new Date().getMonth() + 1)
   const [startYear, setStartYear] = useState<number>(new Date().getFullYear())
   const [months, setMonths] = useState<number>(12)
-  const [amount, setAmount] = useState<number>(200000)
+  const [amount, setAmount] = useState<number>(parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "200000").split(',')[0], 10) || 200000)
   const [defaultSettings, setDefaultSettings] = useState<any>(null)
   const [scheduleType, setScheduleType] = useState<'IPL' | 'THR' | 'Sumbangan'>('IPL')
   const [isMandatory, setIsMandatory] = useState<boolean>(true)

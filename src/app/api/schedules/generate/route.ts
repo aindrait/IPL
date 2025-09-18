@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json()
         if (settingsData.paymentSettings) {
-          defaultAmount = settingsData.paymentSettings.defaultAmount || 200000
+          defaultAmount = settingsData.paymentSettings.defaultAmount || 250000
           dueDay = settingsData.paymentSettings.dueDate || 5
         }
       }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
               id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
-              lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+              gen_random_uuid(),
               ${'SPECIAL'}, ${'THR ' + year}, ${'PLANNED'}, ${input.amount}, ${thrDueDate}, ${null}, ${'THR - Pembayaran wajib'}, ${nowIso}, ${nowIso},
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
               id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
-              lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+              gen_random_uuid(),
               ${v.type}, ${v.label}, ${v.status}, ${v.amount}, ${v.dueDate}, ${v.paidDate}, ${v.notes}, ${nowIso}, ${nowIso},
               ${v.scheduleId}, ${v.periodId}, ${v.residentId}, ${v.paymentId}
             )
@@ -435,7 +435,7 @@ export async function POST(request: NextRequest) {
               id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
-              lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+              gen_random_uuid(),
               ${'SPECIAL'}, ${spec.label}, ${'PLANNED'}, ${period.amount}, ${period.dueDate}, ${null}, ${null}, ${nowIso}, ${nowIso},
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )

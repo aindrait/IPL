@@ -30,7 +30,16 @@ export function generatePaymentIndex(blok: string, houseNumber: string): number 
  * @param baseAmount - The base IPL amount per month
  * @returns The extracted payment index
  */
-export function extractPaymentIndex(amount: number, baseAmount: number = 250000): number {
+export function extractPaymentIndex(amount: number, baseAmount?: number): number {
+  // If baseAmount is not provided, get it from environment variable
+  if (!baseAmount) {
+    const baseAmounts = (process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000")
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    baseAmount = baseAmounts[0] || 250000
+  }
+  
   if (amount <= 0 || baseAmount <= 0) {
     throw new Error('Amount and base amount must be positive numbers');
   }
@@ -50,10 +59,18 @@ export function extractPaymentIndex(amount: number, baseAmount: number = 250000)
  * @returns Object with validation result and number of months
  */
 export function validatePaymentAmount(
-  amount: number, 
-  residentPaymentIndex: number, 
-  baseAmount: number = 250000
+  amount: number,
+  residentPaymentIndex: number,
+  baseAmount?: number
 ): { isValid: boolean; months: number; message?: string } {
+  // If baseAmount is not provided, get it from environment variable
+  if (!baseAmount) {
+    const baseAmounts = (process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000")
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    baseAmount = baseAmounts[0] || 250000
+  }
   try {
     const extractedIndex = extractPaymentIndex(amount, baseAmount);
     const months = Math.floor((amount - extractedIndex) / baseAmount);

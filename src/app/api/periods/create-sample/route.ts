@@ -6,7 +6,12 @@ export async function POST() {
     // Create sample payment periods for the next 12 months
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth() + 1
-    const iplAmount = 200000 // IPL amount per month
+    // Get IPL amount from environment variable or use default
+    const baseAmounts = (process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000")
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0)
+    const iplAmount = baseAmounts[0] || 250000
 
     const periods: Array<{
       name: string
@@ -24,7 +29,9 @@ export async function POST() {
       const month = ((targetMonth - 1) % 12) + 1
       
       const periodName = `IPL Bulan ${new Date(year, month - 1).toLocaleDateString('id-ID', { month: 'long' })} ${year}`
-      const dueDate = new Date(year, month, 5) // Due on 5th of next month
+      // Get due date from environment variable or use default
+      const dueDay = parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5
+      const dueDate = new Date(year, month, dueDay) // Due on specified day of next month
       
       periods.push({
         name: periodName,

@@ -263,7 +263,7 @@ export default function PaymentsPage() {
       const paymentIndex = resident?.paymentIndex || 0
       
       if (paymentIndex > 0) {
-        // Combine base amount with payment index (e.g., 200000 + 111 = 200111)
+        // Combine base amount with payment index (e.g., {parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "200000").split(',')[0], 10) || 200000} + 111 = {parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "200000").split(',')[0], 10) || 200000}111)
         return baseAmount + paymentIndex
       }
     }
