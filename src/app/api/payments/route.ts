@@ -6,20 +6,20 @@ import path from 'path'
 import { validatePaymentAmount } from '@/lib/payment-utils'
 
 const createPaymentSchema = z.object({
-  residentId: z.string().min(1, 'ID warga harus diisi'),
-  periodId: z.string().optional(),
+  resident_id: z.string().min(1, 'ID warga harus diisi'),
+  period_id: z.string().optional(),
   amount: z.number().min(1, 'Jumlah pembayaran harus lebih dari 0'),
-  paymentDate: z.string().min(1, 'Tanggal pembayaran harus diisi'),
-  paymentMethod: z.string().optional(),
+  payment_date: z.string().min(1, 'Tanggal pembayaran harus diisi'),
+  payment_method: z.string().optional(),
   notes: z.string().nullable().optional(),
   scheduleItemId: z.string().optional(),
-}).refine(data => data.periodId || data.scheduleItemId, {
+}).refine(data => data.period_id || data.scheduleItemId, {
   message: 'Periode atau item jadwal harus dipilih',
-  path: ['periodId'],
+  path: ['period_id'],
 }).refine(data => {
-  // If both periodId and scheduleItemId are provided, we need to validate they match
-  if (data.periodId && data.scheduleItemId) {
-    console.log('Both periodId and scheduleItemId provided - this is allowed but needs validation')
+  // If both period_id and scheduleItemId are provided, we need to validate they match
+  if (data.period_id && data.scheduleItemId) {
+    console.log('Both period_id and scheduleItemId provided - this is allowed but needs validation')
     return true // Allow both to be provided, we'll validate the relationship later
   }
   return true
@@ -35,14 +35,14 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '10')))
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status')
-    const residentId = searchParams.get('residentId')
-    const periodId = searchParams.get('periodId')
+    const resident_id = searchParams.get('resident_id')
+    const period_id = searchParams.get('period_id')
     const rtFilter = searchParams.get('rt')
     const yearFilter = searchParams.get('year')
 
     const skip = (page - 1) * limit
 
-    console.log('Fetching payments with params:', { page, limit, search, status, residentId, periodId })
+    console.log('Fetching payments with params:', { page, limit, search, status, resident_id, period_id })
 
     // Build where clause safely
     const where: any = {}
@@ -58,17 +58,31 @@ export async function GET(request: NextRequest) {
       where.status = status.trim()
     }
 
-    if (residentId && residentId.trim()) {
-      where.residentId = residentId.trim()
+    if (resident_id && resident_id.trim()) {
+      where.resident_id = resident_id.trim()
     }
 
-    if (periodId && periodId.trim()) {
-      where.periodId = periodId.trim()
+    if (period_id && period_id.trim()) {
+      where.period_id = period_id.trim()
     }
 
     console.log('Where clause:', JSON.stringify(where, null, 2))
 
     try {
+      // Debug: Check actual columns in payment_proofs table
+      console.log('=== DEBUG: Checking payment_proofs table schema ===')
+      try {
+        const schemaCheck = await db.$queryRaw`
+          SELECT column_name, data_type
+          FROM information_schema.columns
+          WHERE table_name = 'payment_proofs'
+          ORDER BY ordinal_position
+        `
+        console.log('Payment_proofs table schema:', schemaCheck)
+      } catch (schemaError) {
+        console.error('Error checking table schema:', schemaError)
+      }
+
       // Build WHERE conditions for the raw SQL query
       let whereConditions: string[] = [];
       let whereParams: any[] = [];
@@ -84,12 +98,12 @@ export async function GET(request: NextRequest) {
         whereParams.push(searchTerm, searchTerm);
       }
       
-      if (residentId && residentId.trim()) {
-        whereConditions.push('p.residentId = $' + (whereParams.length + 1));
-        whereParams.push(residentId.trim());
+      if (resident_id && resident_id.trim()) {
+        whereConditions.push('p.resident_id = $' + (whereParams.length + 1));
+        whereParams.push(resident_id.trim());
       }
       
-      // Note: periodId filter removed since payments no longer have direct period relationship
+      // Note: period_id filter removed since payments no longer have direct period relationship
 
       if (rtFilter && rtFilter.trim() && rtFilter.trim() !== 'all') {
         whereConditions.push('r.rt = $' + (whereParams.length + 1));
@@ -98,8 +112,8 @@ export async function GET(request: NextRequest) {
       
       if (yearFilter && yearFilter.trim() && yearFilter.trim() !== 'all') {
         // Robust year extraction: works for TEXT ISO, unix epoch seconds, or milliseconds
-        whereConditions.push(`EXTRACT(YEAR FROM p.paymentDate) = $` + (whereParams.length + 1));
-        whereParams.push(yearFilter.trim());
+        whereConditions.push(`EXTRACT(YEAR FROM p.payment_date) = $` + (whereParams.length + 1));
+        whereParams.push(parseInt(yearFilter.trim(), 10));
       }
       
       const whereClause = whereConditions.length > 0
@@ -112,18 +126,18 @@ export async function GET(request: NextRequest) {
         SELECT
           p.id,
           p.amount,
-          p.paymentDate,
+          p.payment_date,
           p.status,
           p.notes,
-          p.createdAt,
-          r.id as residentId,
-          r.name as residentName,
-          r.address as residentAddress,
-          r.phone as residentPhone,
-          r.blok as residentBlok,
-          r.houseNumber as residentHouseNumber,
-          r.rt as residentRt,
-          r.rw as residentRw,
+          p.created_at,
+          r.id as resident_id,
+          r.name as resident_name,
+          r.address as resident_address,
+          r.phone as resident_phone,
+          r.blok as resident_blok,
+          r.house_number as resident_house_number,
+          r.rt as resident_rt,
+          r.rw as resident_rw,
           (
             SELECT json_agg(
               json_build_object(
@@ -132,44 +146,49 @@ export async function GET(request: NextRequest) {
                 'label', psi.label,
                 'status', psi.status,
                 'amount', psi.amount,
-                'dueDate', psi.dueDate,
-                'paidDate', psi.paidDate,
+                'due_date', psi.due_date,
+                'paid_date', psi.paid_date,
                 'period', json_build_object(
                   'id', pp.id,
                   'name', pp.name,
                   'month', pp.month,
                   'year', pp.year,
                   'amount', pp.amount,
-                  'dueDate', pp.dueDate
+                  'due_date', pp.due_date
                 )
               )
             )
             FROM payment_schedule_items psi
-            LEFT JOIN payment_periods pp ON psi.periodId = pp.id
-            WHERE psi.paymentId = p.id
-          ) as scheduleItems,
+            LEFT JOIN payment_periods pp ON psi.period_id = pp.id
+            WHERE psi.payment_id = p.id
+          ) as schedule_items,
           (
             SELECT json_agg(
               json_build_object(
                 'id', pr.id,
                 'filename', pr.filename,
-                'filePath', pr.filePath,
-                'fileSize', pr.fileSize,
-                'mimeType', pr.mimeType,
+                'file_path', pr.file_path,
+                'file_size', pr.file_size,
+                'mime_type', pr.mime_type,
                 'analyzed', pr.analyzed,
-                'analysisResult', pr.analysisResult,
-                'createdAt', pr.createdAt
+                'analysis_result', pr.analysis_result,
+                'created_at', pr.created_at
               )
             )
             FROM payment_proofs pr
-            WHERE pr.paymentId = p.id
+            WHERE pr.payment_id = p.id
           ) as proofs
         FROM payments p
-        LEFT JOIN residents r ON p.residentId = r.id
+        LEFT JOIN residents r ON p.resident_id = r.id
         ${whereClause}
-        ORDER BY p.createdAt DESC
+        ORDER BY p.created_at DESC
         LIMIT ${limit} OFFSET ${offsetValue}
       `;
+      
+      // Debug: Log the exact SQL query being executed
+      console.log('=== DEBUG: SQL Query being executed ===')
+      console.log('Base query before parameter substitution:', baseQuery)
+      console.log('Query parameters:', whereParams)
       
       // Execute the query with parameters
       const payments = await db.$queryRawUnsafe(baseQuery, ...whereParams);
@@ -178,7 +197,7 @@ export async function GET(request: NextRequest) {
       const countQuery = `
         SELECT COUNT(*) as count
         FROM payments p
-        LEFT JOIN residents r ON p.residentId = r.id
+        LEFT JOIN residents r ON p.resident_id = r.id
         ${whereClause}
       `;
       const totalResult = await db.$queryRawUnsafe(countQuery, ...whereParams);
@@ -190,37 +209,23 @@ export async function GET(request: NextRequest) {
       const formattedPayments = Array.isArray(payments) ? payments.map((payment: any) => ({
         id: payment.id,
         amount: payment.amount,
-        paymentDate: payment.paymentDate,
+        payment_date: payment.payment_date,
         status: payment.status,
         notes: payment.notes,
-        createdAt: payment.createdAt,
-        updatedAt: payment.createdAt, // Use createdAt as fallback
+        created_at: payment.created_at,
+        updated_at: payment.created_at, // Use created_at as fallback
         resident: {
-          id: payment.residentId,
-          name: payment.residentName,
-          address: payment.residentAddress,
-          phone: payment.residentPhone,
-          blok: payment.residentBlok,
-          houseNumber: payment.residentHouseNumber,
-          rt: payment.residentRt,
-          rw: payment.residentRw,
+          id: payment.resident_id,
+          name: payment.resident_name,
+          address: payment.resident_address,
+          phone: payment.resident_phone,
+          blok: payment.resident_blok,
+          house_number: payment.resident_house_number,
+          rt: payment.resident_rt,
+          rw: payment.resident_rw,
         },
-        scheduleItems: payment.scheduleItems ? (() => {
-          try {
-            return JSON.parse(payment.scheduleItems);
-          } catch (e) {
-            console.warn('Failed to parse scheduleItems JSON:', e);
-            return [];
-          }
-        })() : [],
-        proofs: payment.proofs ? (() => {
-          try {
-            return JSON.parse(payment.proofs);
-          } catch (e) {
-            console.warn('Failed to parse proofs JSON:', e);
-            return [];
-          }
-        })() : [],
+        schedule_items: payment.schedule_items || [],
+        proofs: payment.proofs || [],
       })) : []
 
       return NextResponse.json({
@@ -274,11 +279,11 @@ export async function POST(request: NextRequest) {
     parsedAmount = num
     
     const paymentData = {
-      residentId: formData.get('residentId') as string,
-      periodId: formData.get('periodId') as string || undefined,
+      resident_id: formData.get('resident_id') as string,
+      period_id: formData.get('period_id') as string || undefined,
       amount: parsedAmount,
-      paymentDate: formData.get('paymentDate') as string,
-      paymentMethod: formData.get('paymentMethod') as string || undefined,
+      payment_date: formData.get('payment_date') as string,
+      payment_method: formData.get('payment_method') as string || undefined,
       notes: formData.get('notes') as string || null,
       scheduleItemId: (formData.get('scheduleItemId') as string) || undefined,
     }
@@ -305,29 +310,29 @@ export async function POST(request: NextRequest) {
     // Check if resident exists
     console.log('Checking resident existence...')
     const residentResult = await db.$queryRaw`
-      SELECT * FROM residents WHERE id = ${validatedData.residentId} LIMIT 1
+      SELECT * FROM residents WHERE id = ${validatedData.resident_id} LIMIT 1
     ` as any[]
     console.log('Resident result:', residentResult)
 
     if (!residentResult || residentResult.length === 0) {
       return NextResponse.json(
-        { error: 'Warga tidak ditemukan', details: `ID warga ${validatedData.residentId} tidak terdaftar dalam sistem` },
+        { error: 'Warga tidak ditemukan', details: `ID warga ${validatedData.resident_id} tidak terdaftar dalam sistem` },
         { status: 404 }
       )
     }
 
     const resident = residentResult[0]
 
-    // Check if period exists only if periodId is provided
+    // Check if period exists only if period_id is provided
     let period: any = null
-    if (validatedData.periodId) {
+    if (validatedData.period_id) {
       period = await db.paymentPeriod.findUnique({
-        where: { id: validatedData.periodId }
+        where: { id: validatedData.period_id }
       })
 
       if (!period) {
         return NextResponse.json(
-          { error: 'Periode pembayaran tidak ditemukan', details: `ID periode ${validatedData.periodId} tidak terdaftar dalam sistem` },
+          { error: 'Periode pembayaran tidak ditemukan', details: `ID periode ${validatedData.period_id} tidak terdaftar dalam sistem` },
           { status: 404 }
         )
       }
@@ -336,8 +341,8 @@ export async function POST(request: NextRequest) {
       const existingPayment = await db.$queryRaw`
         SELECT p.id
         FROM payments p
-        JOIN payment_schedule_items psi ON p.id = psi.paymentId
-        WHERE p.residentId = ${validatedData.residentId} AND psi.periodId = ${validatedData.periodId} LIMIT 1
+        JOIN payment_schedule_items psi ON p.id = psi.payment_id
+        WHERE p.resident_id = ${validatedData.resident_id} AND psi.period_id = ${validatedData.period_id} LIMIT 1
       ` as any[]
 
       if (existingPayment && existingPayment.length > 0) {
@@ -362,16 +367,16 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (scheduleItem.paymentId) {
+      if (scheduleItem.payment_id) {
         return NextResponse.json(
           { error: 'Item jadwal sudah dibayar', details: `Item jadwal untuk periode ${scheduleItem.period?.name || 'tidak diketahui'} sudah memiliki pembayaran` },
           { status: 400 }
         )
       }
 
-      // Set periodId from schedule item if not provided
-      if (!validatedData.periodId && scheduleItem.periodId) {
-        validatedData.periodId = scheduleItem.periodId
+      // Set period_id from schedule item if not provided
+      if (!validatedData.period_id && scheduleItem.period_id) {
+        validatedData.period_id = scheduleItem.period_id
         period = scheduleItem.period
       }
     }
@@ -411,19 +416,19 @@ export async function POST(request: NextRequest) {
       console.log('Validated data before creation:', validatedData)
       console.log('System user ID:', systemUser.id)
       
-      // Remove periodId and scheduleItemId from payment creation data as they're no longer in the payments table
+      // Remove period_id and scheduleItemId from payment creation data as they're no longer in the payments table
       // These will be handled through the schedule item linking process
-      const { periodId, scheduleItemId, ...paymentDataWithoutRelations } = validatedData
+      const { period_id, scheduleItemId, ...paymentDataWithoutRelations } = validatedData
       
       const paymentCreateData = {
         ...paymentDataWithoutRelations,
-        paymentDate: new Date(validatedData.paymentDate),
-        createdById: systemUser.id,
+        payment_date: new Date(validatedData.payment_date),
+        created_by_id: systemUser.id,
       }
       
-      console.log('Payment creation data (removed periodId and scheduleItemId):', paymentCreateData)
+      console.log('Payment creation data (removed period_id and scheduleItemId):', paymentCreateData)
       console.log('Schedule item ID for linking:', scheduleItemId)
-      console.log('Period ID for validation:', periodId)
+      console.log('Period ID for validation:', period_id)
       
       payment = await db.payment.create({
         data: paymentCreateData,
@@ -431,10 +436,10 @@ export async function POST(request: NextRequest) {
           resident: {
             select: { id: true, name: true, address: true, phone: true }
           },
-          createdBy: {
+          created_by: {
             select: { id: true, name: true, email: true }
           },
-          scheduleItems: {
+          schedule_items: {
             include: {
               period: {
                 select: { id: true, name: true, month: true, year: true, amount: true }
@@ -468,35 +473,35 @@ export async function POST(request: NextRequest) {
         const item = await db.paymentScheduleItem.findUnique({ where: { id: validatedData.scheduleItemId } })
         console.log('Found schedule item:', item)
         
-        if (item && !item.paymentId) {
+        if (item && !item.payment_id) {
           console.log('Updating schedule item with payment ID and PAID status')
           await db.paymentScheduleItem.update({
             where: { id: item.id },
             data: {
-              paymentId: payment.id,
+              payment_id: payment.id,
               status: 'PAID',
-              paidDate: new Date(validatedData.paymentDate)
+              paid_date: new Date(validatedData.payment_date)
             }
           })
           console.log('Schedule item successfully flagged as PAID and linked to payment')
-        } else if (item && item.paymentId) {
-          console.warn('Schedule item already linked to payment:', item.paymentId)
+        } else if (item && item.payment_id) {
+          console.warn('Schedule item already linked to payment:', item.payment_id)
         } else {
           console.warn('Schedule item not found')
         }
       } else {
         console.log('No scheduleItemId provided, trying fallback with resident + period')
-        console.log('Resident ID:', validatedData.residentId)
-        console.log('Period ID:', validatedData.periodId)
+        console.log('Resident ID:', validatedData.resident_id)
+        console.log('Period ID:', validatedData.period_id)
         
         // Fallback: link by resident + period if an item exists and not linked
         const item = await db.paymentScheduleItem.findFirst({
           where: {
-            residentId: validatedData.residentId,
-            periodId: validatedData.periodId,
-            paymentId: null,
+            resident_id: validatedData.resident_id,
+            period_id: validatedData.period_id,
+            payment_id: null,
           },
-          orderBy: { dueDate: 'asc' },
+          orderBy: { due_date: 'asc' },
         })
         console.log('Found fallback schedule item:', item)
         
@@ -505,9 +510,9 @@ export async function POST(request: NextRequest) {
           await db.paymentScheduleItem.update({
             where: { id: item.id },
             data: {
-              paymentId: payment.id,
+              payment_id: payment.id,
               status: 'PAID',
-              paidDate: new Date(validatedData.paymentDate)
+              paid_date: new Date(validatedData.payment_date)
             }
           })
           console.log('Fallback schedule item successfully flagged as PAID and linked to payment')
@@ -566,7 +571,7 @@ export async function POST(request: NextRequest) {
             try {
               // Generate a unique filename
               const filename = `${Date.now()}-${file.name}`
-              const filePath = `/uploads/${filename}`
+              const file_path = `/uploads/${filename}`
               const fullPath = path.join(uploadDir, filename)
               
               console.log(`Saving file to: ${fullPath}`)
@@ -579,10 +584,10 @@ export async function POST(request: NextRequest) {
               const proof = await db.paymentProof.create({
                 data: {
                   filename: file.name,
-                  filePath,
-                  fileSize: file.size,
-                  mimeType: file.type,
-                  paymentId: payment.id,
+                  file_path,
+                  file_size: file.size,
+                  mime_type: file.type,
+                  payment_id: payment.id,
                 }
               })
               console.log(`Payment proof created successfully: ${proof.id}`)
@@ -593,7 +598,7 @@ export async function POST(request: NextRequest) {
                 name: file.name,
                 size: file.size,
                 type: file.type,
-                paymentId: payment.id,
+                payment_id: payment.id,
                 error: fileError instanceof Error ? fileError.message : 'Unknown error',
                 stack: fileError instanceof Error ? fileError.stack : 'No stack trace'
               })
@@ -636,10 +641,10 @@ export async function POST(request: NextRequest) {
         resident: {
           select: { id: true, name: true, address: true, phone: true }
         },
-        createdBy: {
+        created_by: {
           select: { id: true, name: true, email: true }
         },
-        scheduleItems: {
+        schedule_items: {
           include: {
             period: {
               select: { id: true, name: true, month: true, year: true, amount: true }
@@ -654,7 +659,7 @@ export async function POST(request: NextRequest) {
     console.log('Payment ID:', payment.id)
     console.log('Proofs count:', completePayment?.proofs.length || 0)
     if (completePayment?.proofs) {
-      console.log('Proofs details:', completePayment.proofs.map(p => ({ id: p.id, filename: p.filename, filePath: p.filePath })))
+      console.log('Proofs details:', completePayment.proofs.map(p => ({ id: p.id, filename: p.filename, file_path: p.file_path })))
     }
 
     return NextResponse.json(completePayment || payment, { status: 201 })
@@ -696,8 +701,8 @@ export async function POST(request: NextRequest) {
 // Bulk create payments from schedule items (initially marked PENDING, validation done later)
 const bulkSchema = z.object({
   itemIds: z.array(z.string()).min(1),
-  paymentDate: z.string(),
-  paymentMethod: z.string().optional(),
+  payment_date: z.string(),
+  payment_method: z.string().optional(),
   notes: z.string().optional(),
   idempotencyKey: z.string().optional(),
 })
@@ -729,8 +734,8 @@ export async function PUT(request: NextRequest) {
       
       input = {
         itemIds,
-        paymentDate: formData.get('paymentDate') as string,
-        paymentMethod: formData.get('paymentMethod') as string || undefined,
+        payment_date: formData.get('payment_date') as string,
+        payment_method: formData.get('payment_method') as string || undefined,
         notes: formData.get('notes') as string || undefined,
       }
       
@@ -765,13 +770,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate all items belong to the same resident
-    const residentIds = [...new Set(items.map(it => it.residentId))]
+    const residentIds = [...new Set(items.map(it => it.resident_id))]
     if (residentIds.length > 1) {
       return NextResponse.json({ error: 'Semua item harus dari warga yang sama' }, { status: 400 })
     }
 
     // Check if any items are already paid
-    const alreadyPaid = items.filter(it => it.paymentId)
+    const alreadyPaid = items.filter(it => it.payment_id)
     if (alreadyPaid.length > 0) {
       return NextResponse.json({ error: 'Beberapa item sudah dibayar' }, { status: 400 })
     }
@@ -785,12 +790,12 @@ export async function PUT(request: NextRequest) {
       const payment = await tx.payment.create({
         data: {
           amount: totalAmount,
-          paymentDate: new Date(input.paymentDate),
+          payment_date: new Date(input.payment_date),
           status: 'PENDING',
-          paymentMethod: input.paymentMethod,
+          payment_method: input.payment_method,
           notes: input.notes,
-          residentId: items[0].residentId, // All items have same residentId
-          createdById: systemUser!.id,
+          resident_id: items[0].resident_id, // All items have same resident_id
+          created_by_id: systemUser!.id,
         } as any,
       })
 
@@ -798,9 +803,9 @@ export async function PUT(request: NextRequest) {
       await tx.paymentScheduleItem.updateMany({
         where: { id: { in: input.itemIds } },
         data: { 
-          paymentId: payment.id,
+          payment_id: payment.id,
           status: 'PAID',
-          paidDate: new Date(input.paymentDate)
+          paid_date: new Date(input.payment_date)
         }
       })
 
@@ -833,7 +838,7 @@ export async function PUT(request: NextRequest) {
             try {
               // Generate a unique filename
               const filename = `${Date.now()}-${file.name}`
-              const filePath = `/uploads/${filename}`
+              const file_path = `/uploads/${filename}`
               const fullPath = path.join(uploadDir, filename)
               
               console.log(`Saving bulk payment file to: ${fullPath}`)
@@ -846,10 +851,10 @@ export async function PUT(request: NextRequest) {
               const proof = await db.paymentProof.create({
                 data: {
                   filename: file.name,
-                  filePath,
-                  fileSize: file.size,
-                  mimeType: file.type,
-                  paymentId: result.id,
+                  file_path,
+                  file_size: file.size,
+                  mime_type: file.type,
+                  payment_id: result.id,
                 }
               })
               console.log(`Bulk payment proof created successfully: ${proof.id}`)
@@ -860,7 +865,7 @@ export async function PUT(request: NextRequest) {
                 name: file.name,
                 size: file.size,
                 type: file.type,
-                paymentId: result.id,
+                payment_id: result.id,
                 error: fileError instanceof Error ? fileError.message : 'Unknown error',
                 stack: fileError instanceof Error ? fileError.stack : 'No stack trace'
               })

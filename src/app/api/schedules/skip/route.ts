@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const results: any[] = []
     for (const item of items) {
-      if (item.status === 'PAID' && item.paymentId) {
+      if (item.status === 'PAID' && item.payment_id) {
         results.push({ itemId: item.id, status: 'cannot_skip_paid', message: 'Item sudah dibayar' })
         continue
       }

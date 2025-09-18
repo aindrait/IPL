@@ -9,20 +9,20 @@ export interface BankTransaction {
   amount: number | null
   balance?: number | null
   reference?: string
-  transactionType?: 'CR' | 'DB' | null // Credit/Debit transaction type
+  transaction_type?: 'CR' | 'DB' | null // Credit/Debit transaction type
   category?: string // Transaction category
 }
 
 export interface MatchResult {
-  residentId: string
-  paymentId?: string
+  resident_id: string
+  payment_id?: string
   confidence: number // 0-1 score
   matchFactors: string[] // Which criteria matched
   strategy: string // Matching strategy used
 }
 
 export interface MatchingCriteria {
-  paymentIndex?: number // 4-digit suffix match
+  payment_index?: number // 4-digit suffix match
   amount: number // Exact amount match
   dateRange: number // Days tolerance (±3 days)
   nameMatch?: string // Fuzzy name matching
@@ -119,21 +119,21 @@ export function parseDescription(description: string): {
 /**
  * Categorize bank transaction based on description AND transaction type
  */
-export function categorizeTransaction(description: string, transactionType?: 'CR' | 'DB' | null): {
+export function categorizeTransaction(description: string, transaction_type?: 'CR' | 'DB' | null): {
   category: string
   confidence: number
   shouldOmit: boolean
-  omitReason?: string
+  omit_reason?: string
 } {
   const desc = description.toLowerCase()
   
   // First, check transaction type - DB transactions should be omitted (money out from account holder perspective)
-  if (transactionType === 'DB') {
+  if (transaction_type === 'DB') {
     return {
       category: 'LAINNYA',
       confidence: 0.9,
       shouldOmit: true,
-      omitReason: 'DB transaction - money out from account holder perspective'
+      omit_reason: 'DB transaction - money out from account holder perspective'
     }
   }
   
@@ -143,7 +143,7 @@ export function categorizeTransaction(description: string, transactionType?: 'CR
       category: 'DEPOSIT_RENOVASI',
       confidence: 0.9,
       shouldOmit: true,
-      omitReason: 'Renovation deposit - not related to IPL payments'
+      omit_reason: 'Renovation deposit - not related to IPL payments'
     }
   }
   
@@ -152,7 +152,7 @@ export function categorizeTransaction(description: string, transactionType?: 'CR
       category: 'BIAYA_ADMIN',
       confidence: 0.9,
       shouldOmit: true,
-      omitReason: 'Administrative fee - not related to IPL payments'
+      omit_reason: 'Administrative fee - not related to IPL payments'
     }
   }
   
@@ -184,7 +184,7 @@ export function categorizeTransaction(description: string, transactionType?: 'CR
   }
   
   // For CR transactions with no specific keywords, default to including them
-  if (transactionType === 'CR') {
+  if (transaction_type === 'CR') {
     return {
       category: 'LAINNYA',
       confidence: 0.6,
@@ -243,17 +243,17 @@ export function calculateNameSimilarity(str1: string, str2: string): number {
  * Find best name match from resident list
  */
 export function findBestNameMatch(
-  bankName: string, 
+  bank_name: string, 
   residentNames: { id: string; name: string; aliases?: string[] }[]
-): { residentId: string; similarity: number; matchedName: string } | null {
-  let bestMatch: { residentId: string; similarity: number; matchedName: string } | null = null
+): { resident_id: string; similarity: number; matchedName: string } | null {
+  let bestMatch: { resident_id: string; similarity: number; matchedName: string } | null = null
   
   for (const resident of residentNames) {
     // Check primary name
-    const primarySimilarity = calculateNameSimilarity(bankName, resident.name)
+    const primarySimilarity = calculateNameSimilarity(bank_name, resident.name)
     if (primarySimilarity > (bestMatch?.similarity || 0)) {
       bestMatch = {
-        residentId: resident.id,
+        resident_id: resident.id,
         similarity: primarySimilarity,
         matchedName: resident.name
       }
@@ -262,10 +262,10 @@ export function findBestNameMatch(
     // Check aliases if available
     if (resident.aliases) {
       for (const alias of resident.aliases) {
-        const aliasSimilarity = calculateNameSimilarity(bankName, alias)
+        const aliasSimilarity = calculateNameSimilarity(bank_name, alias)
         if (aliasSimilarity > (bestMatch?.similarity || 0)) {
           bestMatch = {
-            residentId: resident.id,
+            resident_id: resident.id,
             similarity: aliasSimilarity,
             matchedName: alias
           }
@@ -415,19 +415,19 @@ export function parseCSVBankData(csvContent: string, opts?: { hintYear?: number;
       const balance = saldo && saldo.trim() !== '' ? parseFloat(saldo.replace(/[^\d.-]/g, '')) : undefined
       
       // Determine transaction type (CR/DB) - FIRST try to read from column E
-      let transactionType: 'CR' | 'DB' | null = null
+      let transaction_type: 'CR' | 'DB' | null = null
       if (columnE && columnE.trim() !== '') {
         const normalizedColumnE = columnE.trim().toUpperCase()
         if (normalizedColumnE === 'CR' || normalizedColumnE === 'DB') {
-          transactionType = normalizedColumnE as 'CR' | 'DB'
+          transaction_type = normalizedColumnE as 'CR' | 'DB'
         }
       }
       
       // Fallback: Determine transaction type based on amount sign if column E is not valid
-      if (transactionType === null && amount !== null) {
+      if (transaction_type === null && amount !== null) {
         // Positive amounts are typically Credits (CR)
         // Negative amounts are typically Debits (DB)
-        transactionType = amount >= 0 ? 'CR' : 'DB'
+        transaction_type = amount >= 0 ? 'CR' : 'DB'
       }
       
       // Parse date
@@ -447,7 +447,7 @@ export function parseCSVBankData(csvContent: string, opts?: { hintYear?: number;
         amount: amount,
         balance: balance,
         reference: cabang,
-        transactionType: transactionType
+        transaction_type: transaction_type
       }
       
       const validation = validateBankTransaction(transaction)
@@ -483,7 +483,7 @@ export function parseCSVBankData(csvContent: string, opts?: { hintYear?: number;
               bulan: bulan || (forceMonth ? String(forceMonth).padStart(2, '0') : ''),
               tahun: tahun ? parseInt(tahun) : yearToUse,
               rt: rt,
-              isVerified: ok === '1' || ok.toLowerCase() === 'ok'
+              is_verified: ok === '1' || ok.toLowerCase() === 'ok'
             }
           }
           verificationHistory.push(historyItem)
@@ -537,7 +537,7 @@ export interface VerificationHistoryItem {
     bulan: string
     tahun: number
     rt: string
-    isVerified: boolean
+    is_verified: boolean
   }
 }
 

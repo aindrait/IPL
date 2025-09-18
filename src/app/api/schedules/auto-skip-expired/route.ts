@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
       where: {
         type: 'DONATION',
         status: { notIn: ['PAID', 'SKIPPED'] }, // Only OPTIONAL and PLANNED donations
-        dueDate: { lt: now }, // Past due date
-        paymentId: null // Not paid
+        due_date: { lt: now }, // Past due date
+        payment_id: null // Not paid
       },
       include: {
         resident: {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         id: item.id,
         label: item.label,
         residentName: item.resident.name,
-        dueDate: item.dueDate,
+        due_date: item.due_date,
         amount: item.amount
       }))
     })

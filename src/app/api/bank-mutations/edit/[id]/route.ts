@@ -27,16 +27,16 @@ export async function POST(
 
     if (action === 'unverify') {
       // Store previous match data for verification history
-      const previousMatchedPaymentId = mutation.matchedPaymentId
-      const previousMatchedResidentId = mutation.matchedResidentId
+      const previous_matched_payment_id = mutation.matched_payment_id
+      const previousMatchedResidentId = mutation.matched_resident_id
 
       // Update the mutation to unverify it
       updatedMutation = await db.bankMutation.update({
         where: { id: params.id },
         data: {
-          isVerified: false,
-          verifiedAt: null,
-          verifiedBy: null
+          is_verified: false,
+          verified_at: null,
+          verified_by: null
         }
       })
 
@@ -45,13 +45,13 @@ export async function POST(
       // Create verification history record
       await db.bankMutationVerification.create({
         data: {
-          mutationId: params.id,
+          mutation_id: params.id,
           action: 'MANUAL_OVERRIDE',
           notes: verificationNotes,
-          verifiedBy: 'USER',
+          verified_by: 'USER',
           confidence: 0,
-          previousMatchedPaymentId,
-          newMatchedPaymentId: null
+          previous_matched_payment_id,
+          new_matched_payment_id: null
         }
       })
     } else {

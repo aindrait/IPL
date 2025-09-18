@@ -17,13 +17,13 @@ type RT = {
   rw: number
   chairman: string | null
   phone: string | null
-  isActive: boolean
+  is_active: boolean
   residents: Array<{
     id: string
     name: string | null
     blok: string | null
-    houseNumber: string | null
-    isActive: boolean
+    house_number: string | null
+    is_active: boolean
   }>
 }
 
@@ -39,7 +39,7 @@ export default function RTsPage() {
   const [rw, setRW] = useState('')
   const [chairman, setChairman] = useState('')
   const [phone, setPhone] = useState('')
-  const [isActive, setIsActive] = useState(true)
+  const [is_active, setIsActive] = useState(true)
 
   const fetchRTs = async () => {
     setLoading(true)
@@ -76,7 +76,7 @@ export default function RTsPage() {
       rw: parseInt(rw),
       chairman: chairman || null,
       phone: phone || null,
-      isActive,
+      is_active,
     }
 
     try {
@@ -109,7 +109,7 @@ export default function RTsPage() {
     setRW(rt.rw.toString())
     setChairman(rt.chairman || '')
     setPhone(rt.phone || '')
-    setIsActive(rt.isActive)
+    setIsActive(rt.is_active)
     setOpenDialog(true)
   }
 
@@ -194,11 +194,11 @@ export default function RTsPage() {
                 </div>
                 <div className="col-span-2 flex items-center space-x-2">
                   <Switch
-                    id="isActive"
-                    checked={isActive}
+                    id="is_active"
+                    checked={is_active}
                     onCheckedChange={setIsActive}
                   />
-                  <Label htmlFor="isActive">Aktif</Label>
+                  <Label htmlFor="is_active">Aktif</Label>
                 </div>
               </div>
               <div className="mt-4 flex justify-end space-x-2">
@@ -234,14 +234,14 @@ export default function RTsPage() {
                     <TableCell>{rt.chairman || '-'}</TableCell>
                     <TableCell>{rt.phone || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={rt.isActive ? 'default' : 'secondary'}>
-                        {rt.isActive ? 'Aktif' : 'Tidak Aktif'}
+                      <Badge variant={rt.is_active ? 'default' : 'secondary'}>
+                        {rt.is_active ? 'Aktif' : 'Tidak Aktif'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">
                         <Users className="h-4 w-4" />
-                        <span>{rt.residents ? rt.residents.filter(r => r.isActive).length : 0}</span>
+                        <span>{rt.residents ? rt.residents.filter(r => r.is_active).length : 0}</span>
                       </div>
                     </TableCell>
                     <TableCell>

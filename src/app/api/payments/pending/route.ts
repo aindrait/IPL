@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
       const startOfYear = new Date(parseInt(yearFilter), 0, 1)
       const endOfYear = new Date(parseInt(yearFilter) + 1, 0, 1)
       
-      if (!where.paymentDate) {
-        where.paymentDate = {}
+      if (!where.payment_date) {
+        where.payment_date = {}
       }
-      where.paymentDate = {
+      where.payment_date = {
         gte: startOfYear,
         lt: endOfYear
       }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const [pendingPayments, total] = await Promise.all([
       db.payment.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         skip,
         take: limit,
         include: {
@@ -58,15 +58,15 @@ export async function GET(request: NextRequest) {
               rt: true,
               rw: true,
               blok: true,
-              houseNumber: true,
+              house_number: true,
               phone: true,
-              paymentIndex: true
+              payment_index: true
             }
           },
-          scheduleItems: {
+          schedule_items: {
             include: {
               period: {
-                select: { name: true, month: true, year: true, amount: true, dueDate: true }
+                select: { name: true, month: true, year: true, amount: true, due_date: true }
               }
             }
           },
@@ -74,15 +74,15 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               filename: true,
-              filePath: true,
-              fileSize: true,
-              mimeType: true,
+              file_path: true,
+              file_size: true,
+              mime_type: true,
               analyzed: true,
-              analysisResult: true,
-              createdAt: true
+              analysis_result: true,
+              created_at: true
             }
           },
-          createdBy: {
+          created_by: {
             select: { name: true, email: true }
           }
         }
@@ -94,30 +94,30 @@ export async function GET(request: NextRequest) {
     const formattedPayments = pendingPayments.map(payment => ({
       id: payment.id,
       amount: payment.amount,
-      paymentDate: payment.paymentDate.toISOString().split('T')[0],
+      payment_date: payment.payment_date.toISOString().split('T')[0],
       status: payment.status,
-      paymentMethod: payment.paymentMethod,
+      payment_method: payment.payment_method,
       notes: payment.notes,
-      createdAt: payment.createdAt.toISOString(),
+      created_at: payment.created_at.toISOString(),
       resident: {
         id: payment.resident.id,
         name: payment.resident.name,
         rt: payment.resident.rt,
         rw: payment.resident.rw,
         blok: payment.resident.blok,
-        houseNumber: payment.resident.houseNumber,
+        house_number: payment.resident.house_number,
         phone: payment.resident.phone,
-        paymentIndex: payment.resident.paymentIndex || null,
-        address: `${payment.resident.blok || ''} ${payment.resident.houseNumber || ''}`.trim()
+        payment_index: payment.resident.payment_index || null,
+        address: `${payment.resident.blok || ''} ${payment.resident.house_number || ''}`.trim()
       },
-      scheduleItems: payment.scheduleItems.map(item => ({
+      schedule_items: payment.schedule_items.map(item => ({
         id: item.id,
         type: item.type,
         label: item.label,
         status: item.status,
         amount: item.amount,
         originalAmount: item.period?.amount || 0,
-        dueDate: item.dueDate,
+        due_date: item.due_date,
         notes: item.notes,
         isAmountEdited: item.amount !== (item.period?.amount || 0),
         period: {
@@ -125,10 +125,10 @@ export async function GET(request: NextRequest) {
           month: item.period?.month,
           year: item.period?.year,
           amount: item.period?.amount,
-          dueDate: item.period?.dueDate
+          due_date: item.period?.due_date
         }
       })),
-      periods: payment.scheduleItems.map(item => ({
+      periods: payment.schedule_items.map(item => ({
         name: item.period?.name,
         month: item.period?.month,
         year: item.period?.year,
@@ -137,22 +137,22 @@ export async function GET(request: NextRequest) {
       proofs: payment.proofs.map(proof => ({
         id: proof.id,
         filename: proof.filename,
-        filePath: proof.filePath,
-        fileSize: proof.fileSize,
-        mimeType: proof.mimeType,
+        file_path: proof.file_path,
+        file_size: proof.file_size,
+        mime_type: proof.mime_type,
         analyzed: proof.analyzed,
-        analysisResult: proof.analysisResult,
-        uploadedAt: proof.createdAt.toISOString()
+        analysis_result: proof.analysis_result,
+        uploadedAt: proof.created_at.toISOString()
       })),
-      submittedBy: payment.createdBy?.name || 'System',
-      totalScheduleAmount: payment.scheduleItems.reduce((sum, item) => sum + item.amount, 0), // Use actual schedule item amounts (edited)
-      totalOriginalAmount: payment.scheduleItems.reduce((sum, item) => sum + (item.period?.amount || 0), 0), // Original period amounts
+      submittedBy: payment.created_by?.name || 'System',
+      totalScheduleAmount: payment.schedule_items.reduce((sum, item) => sum + item.amount, 0), // Use actual schedule item amounts (edited)
+      totalOriginalAmount: payment.schedule_items.reduce((sum, item) => sum + (item.period?.amount || 0), 0), // Original period amounts
       // Verification helpers - check for both exact amount and amount+index
       amountMatch: (() => {
-        const totalScheduleAmount = payment.scheduleItems.reduce((sum, item) => sum + item.amount, 0)
-        const totalOriginalAmount = payment.scheduleItems.reduce((sum, item) => sum + (item.period?.amount || 0), 0)
+        const totalScheduleAmount = payment.schedule_items.reduce((sum, item) => sum + item.amount, 0)
+        const totalOriginalAmount = payment.schedule_items.reduce((sum, item) => sum + (item.period?.amount || 0), 0)
         // Get resident payment index
-        const residentPaymentIndex = payment.resident.paymentIndex || 0
+        const residentPaymentIndex = payment.resident.payment_index || 0
         
         // Check if payment amount matches either:
         // 1. The exact schedule amount (which may have been edited)
@@ -161,9 +161,9 @@ export async function GET(request: NextRequest) {
         return payment.amount === totalScheduleAmount ||
                payment.amount === totalOriginalAmount + residentPaymentIndex
       })(),
-      hasEditedAmounts: payment.scheduleItems.some(item => item.amount !== (item.period?.amount || 0)),
+      hasEditedAmounts: payment.schedule_items.some(item => item.amount !== (item.period?.amount || 0)),
       hasProofs: payment.proofs.length > 0,
-      daysWaiting: Math.floor((new Date().getTime() - payment.createdAt.getTime()) / (1000 * 60 * 60 * 24))
+      daysWaiting: Math.floor((new Date().getTime() - payment.created_at.getTime()) / (1000 * 60 * 60 * 24))
     }))
 
     return NextResponse.json({

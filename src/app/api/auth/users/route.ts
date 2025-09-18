@@ -9,11 +9,11 @@ export async function GET(request: NextRequest) {
         email: true,
         name: true,
         role: true,
-        createdAt: true,
-        updatedAt: true
+        created_at: true,
+        updated_at: true
       },
       orderBy: {
-        createdAt: 'desc'
+        created_at: 'desc'
       }
     })
 

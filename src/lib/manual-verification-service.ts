@@ -22,7 +22,7 @@ export interface ManualVerificationCandidate {
     reference?: string
   }
   suggestedMatches: Array<{
-    residentId: string
+    resident_id: string
     confidence: number
     strategy: string
     factors: string[]
@@ -30,7 +30,7 @@ export interface ManualVerificationCandidate {
   }>
   requiresReview: boolean
   priority: 'HIGH' | 'MEDIUM' | 'LOW'
-  createdAt: Date
+  created_at: Date
 }
 
 export interface ManualVerificationOptions {
@@ -43,9 +43,9 @@ export interface ManualVerificationOptions {
 
 export interface VerificationAction {
   type: 'MATCH' | 'UNMATCH' | 'SKIP' | 'FLAG' | 'BULK_MATCH' | 'BULK_UNMATCH'
-  mutationId: string
-  residentId?: string
-  paymentId?: string
+  mutation_id: string
+  resident_id?: string
+  payment_id?: string
   confidence?: number
   notes?: string
   tags?: string[]
@@ -82,10 +82,10 @@ export class ManualVerificationService {
 
     // Initialize helper components
     const residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       include: {
         bankAliases: {
-          where: { isVerified: true },
+          where: { is_verified: true },
           orderBy: { frequency: 'desc' }
         }
       }
@@ -120,14 +120,14 @@ export class ManualVerificationService {
     const unmatchedMutations = await (db as any).bankMutation.findMany({
       where: {
         OR: [
-          { matchedResidentId: null },
-          { isVerified: false },
-          { matchScore: { lt: 0.7 } }
+          { matched_resident_id: null },
+          { is_verified: false },
+          { match_score: { lt: 0.7 } }
         ]
       },
       orderBy: [
         { amount: 'desc' },
-        { transactionDate: 'desc' }
+        { transaction_date: 'desc' }
       ],
       take: 50 // Limit for performance
     })
@@ -144,17 +144,17 @@ export class ManualVerificationService {
         id: mutation.id,
         transaction: {
           id: mutation.id,
-          date: mutation.transactionDate.toISOString(),
+          date: mutation.transaction_date.toISOString(),
           description: mutation.description,
           amount: mutation.amount,
           balance: mutation.balance,
-          reference: mutation.referenceNumber
+          reference: mutation.reference_number
         },
         suggestedMatches,
         requiresReview: suggestedMatches.length === 0 || 
                          suggestedMatches.every(m => m.confidence < 0.7),
         priority,
-        createdAt: mutation.createdAt
+        created_at: mutation.created_at
       })
     }
 
@@ -168,14 +168,14 @@ export class ManualVerificationService {
     mutation: any,
     options: ManualVerificationOptions
   ): Promise<Array<{
-    residentId: string
+    resident_id: string
     confidence: number
     strategy: string
     factors: string[]
     source: 'RULE_BASED' | 'AI' | 'LEARNING' | 'HISTORICAL'
   }>> {
     const matches: Array<{
-      residentId: string
+      resident_id: string
       confidence: number
       strategy: string
       factors: string[]
@@ -184,7 +184,7 @@ export class ManualVerificationService {
 
     // Get residents for matching
     const residents = await db.resident.findMany({
-      where: { isActive: true }
+      where: { is_active: true }
     })
 
     // 1. Rule-based matching
@@ -193,7 +193,7 @@ export class ManualVerificationService {
         const ruleResult = await this.ruleBasedEngine.findBestMatch(mutation, residents)
         if (ruleResult) {
           matches.push({
-            residentId: ruleResult.residentId!,
+            resident_id: ruleResult.resident_id!,
             confidence: ruleResult.confidence,
             strategy: ruleResult.strategy,
             factors: ruleResult.factors,
@@ -211,18 +211,18 @@ export class ManualVerificationService {
         const aiRequest = {
           transaction: {
             id: mutation.id,
-            date: mutation.transactionDate.toISOString(),
+            date: mutation.transaction_date.toISOString(),
             description: mutation.description,
             amount: mutation.amount,
             balance: mutation.balance,
-            reference: mutation.referenceNumber
+            reference: mutation.reference_number
           },
           residents,
           context: {
             ruleBasedResults: matches
               .filter(m => m.source === 'RULE_BASED')
               .map(m => ({
-                residentId: m.residentId,
+                resident_id: m.resident_id,
                 confidence: m.confidence,
                 strategy: m.strategy,
                 factors: m.factors
@@ -239,8 +239,8 @@ export class ManualVerificationService {
           id: resident.id,
           name: resident.name,
           blok: resident.blok || undefined,
-          houseNumber: resident.houseNumber || undefined,
-          paymentIndex: resident.paymentIndex || undefined,
+          house_number: resident.house_number || undefined,
+          payment_index: resident.payment_index || undefined,
           rt: resident.rt,
           rw: resident.rw,
           phone: resident.phone,
@@ -256,7 +256,7 @@ export class ManualVerificationService {
         
         for (const match of aiResponse.matches) {
           matches.push({
-            residentId: match.residentId,
+            resident_id: match.resident_id,
             confidence: match.confidence,
             strategy: 'AI_ANALYSIS',
             factors: match.factors,
@@ -277,7 +277,7 @@ export class ManualVerificationService {
         
         for (const match of learningMatches) {
           matches.push({
-            residentId: match.residentId,
+            resident_id: match.resident_id,
             confidence: match.confidence,
             strategy: 'LEARNING_PATTERN',
             factors: match.factors,
@@ -296,7 +296,7 @@ export class ManualVerificationService {
         
         for (const match of historicalMatches) {
           matches.push({
-            residentId: match.residentId,
+            resident_id: match.resident_id,
             confidence: match.confidence,
             strategy: 'HISTORICAL_PATTERN',
             factors: match.factors,
@@ -322,7 +322,7 @@ export class ManualVerificationService {
     mutation: any,
     residents: any[]
   ): Promise<Array<{
-    residentId: string
+    resident_id: string
     confidence: number
     factors: string[]
   }>> {
@@ -340,7 +340,7 @@ export class ManualVerificationService {
     mutation: any,
     residents: any[]
   ): Promise<Array<{
-    residentId: string
+    resident_id: string
     confidence: number
     factors: string[]
   }>> {
@@ -355,7 +355,7 @@ export class ManualVerificationService {
   private determinePriority(
     mutation: any,
     matches: Array<{
-      residentId: string
+      resident_id: string
       confidence: number
       strategy: string
       factors: string[]
@@ -382,7 +382,7 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     try {
@@ -408,7 +408,7 @@ export class ManualVerificationService {
         default:
           return {
             success: false,
-            mutationId: action.mutationId,
+            mutation_id: action.mutation_id,
             error: 'Unknown action type'
           }
       }
@@ -417,7 +417,7 @@ export class ManualVerificationService {
       
       return {
         success: false,
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
@@ -431,46 +431,46 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
-    if (!action.residentId) {
+    if (!action.resident_id) {
       return {
         success: false,
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         error: 'Resident ID is required for match action'
       }
     }
 
     // Update bank mutation
     await (db as any).bankMutation.update({
-      where: { id: action.mutationId },
+      where: { id: action.mutation_id },
       data: {
-        matchedResidentId: action.residentId,
-        matchedPaymentId: action.paymentId,
-        matchScore: action.confidence || 0.8,
-        isVerified: true,
-        verifiedAt: new Date(),
-        verifiedBy: userId
+        matched_resident_id: action.resident_id,
+        matched_payment_id: action.payment_id,
+        match_score: action.confidence || 0.8,
+        is_verified: true,
+        verified_at: new Date(),
+        verified_by: userId
       }
     })
 
     // Record verification history
     await (db as any).bankMutationVerification.create({
       data: {
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         action: 'MANUAL_CONFIRM',
         confidence: action.confidence || 0.8,
-        verifiedBy: userId,
+        verified_by: userId,
         notes: action.notes || 'Manual verification match',
-        newMatchedPaymentId: action.paymentId
+        new_matched_payment_id: action.payment_id
       }
     })
 
     // Update learning system
     if (this.learningSystem) {
       const mutation = await (db as any).bankMutation.findUnique({
-        where: { id: action.mutationId }
+        where: { id: action.mutation_id }
       })
 
       if (mutation) {
@@ -484,7 +484,7 @@ export class ManualVerificationService {
 
     return {
       success: true,
-      mutationId: action.mutationId
+      mutation_id: action.mutation_id
     }
   }
 
@@ -496,42 +496,42 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     // Get current match info before unmatching
     const mutation = await (db as any).bankMutation.findUnique({
-      where: { id: action.mutationId }
+      where: { id: action.mutation_id }
     })
 
     // Update bank mutation
     await (db as any).bankMutation.update({
-      where: { id: action.mutationId },
+      where: { id: action.mutation_id },
       data: {
-        matchedResidentId: null,
-        matchedPaymentId: null,
-        matchScore: 0,
-        isVerified: false,
-        verifiedAt: null,
-        verifiedBy: null
+        matched_resident_id: null,
+        matched_payment_id: null,
+        match_score: 0,
+        is_verified: false,
+        verified_at: null,
+        verified_by: null
       }
     })
 
     // Record verification history
     await (db as any).bankMutationVerification.create({
       data: {
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         action: 'MANUAL_OVERRIDE',
         confidence: 0,
-        verifiedBy: userId,
+        verified_by: userId,
         notes: action.notes || 'Manual verification unmatch',
-        previousMatchedPaymentId: mutation?.matchedPaymentId
+        previous_matched_payment_id: mutation?.matched_payment_id
       }
     })
 
     return {
       success: true,
-      mutationId: action.mutationId
+      mutation_id: action.mutation_id
     }
   }
 
@@ -543,23 +543,23 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     // Record verification history
     await (db as any).bankMutationVerification.create({
       data: {
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         action: 'MANUAL_SKIP',
         confidence: 0,
-        verifiedBy: userId,
+        verified_by: userId,
         notes: action.notes || 'Manual verification skip'
       }
     })
 
     return {
       success: true,
-      mutationId: action.mutationId
+      mutation_id: action.mutation_id
     }
   }
 
@@ -571,23 +571,23 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     // Record verification history
     await (db as any).bankMutationVerification.create({
       data: {
-        mutationId: action.mutationId,
+        mutation_id: action.mutation_id,
         action: 'MANUAL_FLAG',
         confidence: 0,
-        verifiedBy: userId,
+        verified_by: userId,
         notes: action.notes || 'Manual verification flag'
       }
     })
 
     return {
       success: true,
-      mutationId: action.mutationId
+      mutation_id: action.mutation_id
     }
   }
 
@@ -599,13 +599,13 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     // Bulk actions would be implemented here
     return {
       success: false,
-      mutationId: action.mutationId,
+      mutation_id: action.mutation_id,
       error: 'Bulk actions not yet implemented'
     }
   }
@@ -618,13 +618,13 @@ export class ManualVerificationService {
     userId: string
   ): Promise<{
     success: boolean
-    mutationId: string
+    mutation_id: string
     error?: string
   }> {
     // Bulk actions would be implemented here
     return {
       success: false,
-      mutationId: action.mutationId,
+      mutation_id: action.mutation_id,
       error: 'Bulk actions not yet implemented'
     }
   }
@@ -688,16 +688,16 @@ export class ManualVerificationService {
     const unmatchedMutations = await (db as any).bankMutation.findMany({
       where: {
         OR: [
-          { matchedResidentId: null },
-          { isVerified: false },
-          { matchScore: { lt: 0.7 } }
+          { matched_resident_id: null },
+          { is_verified: false },
+          { match_score: { lt: 0.7 } }
         ]
       },
       select: {
         id: true,
         amount: true,
-        matchScore: true,
-        createdAt: true
+        match_score: true,
+        created_at: true
       }
     })
 
@@ -710,17 +710,17 @@ export class ManualVerificationService {
 
     for (const mutation of unmatchedMutations) {
       // Determine priority
-      if (mutation.amount > 500000 || mutation.matchScore === null) {
+      if (mutation.amount > 500000 || mutation.match_score === null) {
         highPriority++
-      } else if (mutation.amount > 200000 || mutation.matchScore < 0.5) {
+      } else if (mutation.amount > 200000 || mutation.match_score < 0.5) {
         mediumPriority++
       } else {
         lowPriority++
       }
 
       // Track confidence
-      if (mutation.matchScore !== null) {
-        totalConfidence += mutation.matchScore
+      if (mutation.match_score !== null) {
+        totalConfidence += mutation.match_score
         confidenceCount++
       }
     }
@@ -733,11 +733,11 @@ export class ManualVerificationService {
 
     const recentVerifications = await (db as any).bankMutationVerification.findMany({
       where: {
-        createdAt: { gte: sevenDaysAgo },
-        verifiedBy: { not: 'SYSTEM' }
+        created_at: { gte: sevenDaysAgo },
+        verified_by: { not: 'SYSTEM' }
       },
       select: {
-        createdAt: true,
+        created_at: true,
         action: true
       }
     })
@@ -746,7 +746,7 @@ export class ManualVerificationService {
     const activityByDate: Record<string, { processed: number; matched: number }> = {}
     
     for (const verification of recentVerifications) {
-      const date = verification.createdAt.toISOString().split('T')[0]
+      const date = verification.created_at.toISOString().split('T')[0]
       
       if (!activityByDate[date]) {
         activityByDate[date] = { processed: 0, matched: 0 }
@@ -778,26 +778,26 @@ export class ManualVerificationService {
   /**
    * Get verification history for a transaction
    */
-  async getVerificationHistory(mutationId: string): Promise<Array<{
+  async getVerificationHistory(mutation_id: string): Promise<Array<{
     id: string
     action: string
     confidence: number
-    verifiedBy: string
+    verified_by: string
     notes: string
-    createdAt: Date
+    created_at: Date
   }>> {
     const history = await (db as any).bankMutationVerification.findMany({
-      where: { mutationId },
-      orderBy: { createdAt: 'desc' }
+      where: { mutation_id },
+      orderBy: { created_at: 'desc' }
     })
 
     return history.map((record: any) => ({
       id: record.id,
       action: record.action,
       confidence: record.confidence,
-      verifiedBy: record.verifiedBy,
+      verified_by: record.verified_by,
       notes: record.notes || '',
-      createdAt: record.createdAt
+      created_at: record.created_at
     }))
   }
 }

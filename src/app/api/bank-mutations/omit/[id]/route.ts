@@ -9,10 +9,10 @@ export async function POST(
   try {
     console.log(`[DEBUG] Starting omit operation for mutation ID: ${params.id}`)
     const body = await request.json()
-    const { omitReason } = body
+    const { omit_reason } = body
 
-    if (!omitReason) {
-      console.log(`[DEBUG] Omit operation failed: omitReason is missing`)
+    if (!omit_reason) {
+      console.log(`[DEBUG] Omit operation failed: omit_reason is missing`)
       return NextResponse.json({ error: 'Omit reason is required' }, { status: 400 })
     }
 
@@ -28,11 +28,11 @@ export async function POST(
 
     console.log(`[DEBUG] Found mutation with current state:`, {
       id: mutation.id,
-      isOmitted: (mutation as any).isOmitted,
-      isVerified: mutation.isVerified,
-      verifiedBy: mutation.verifiedBy,
-      matchedPaymentId: mutation.matchedPaymentId,
-      matchedResidentId: mutation.matchedResidentId
+      is_omitted: (mutation as any).is_omitted,
+      is_verified: mutation.is_verified,
+      verified_by: mutation.verified_by,
+      matched_payment_id: mutation.matched_payment_id,
+      matched_resident_id: mutation.matched_resident_id
     })
 
     // Update the mutation to mark it as omitted and create verification history record in a transaction
@@ -43,11 +43,11 @@ export async function POST(
       const updatedMutation = await tx.bankMutation.update({
         where: { id: params.id },
         data: {
-          isOmitted: true,
-          omitReason: omitReason,
-          isVerified: true,
-          verifiedAt: new Date(),
-          verifiedBy: 'OMITTED'
+          is_omitted: true,
+          omit_reason: omit_reason,
+          is_verified: true,
+          verified_at: new Date(),
+          verified_by: 'OMITTED'
         } as any
       })
 
@@ -56,10 +56,10 @@ export async function POST(
       // Create verification history record
       await tx.bankMutationVerification.create({
         data: {
-          mutationId: params.id,
+          mutation_id: params.id,
           action: 'MANUAL_OMIT' as any,
-          notes: omitReason,
-          verifiedBy: 'USER',
+          notes: omit_reason,
+          verified_by: 'USER',
           confidence: 1.0
         }
       })

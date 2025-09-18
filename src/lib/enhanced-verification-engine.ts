@@ -14,8 +14,8 @@ import {
 } from './bank-mutation-utils'
 
 export interface EnhancedVerificationResult {
-  residentId?: string
-  paymentId?: string
+  resident_id?: string
+  payment_id?: string
   confidence: number
   strategy: string
   factors: string[]
@@ -43,10 +43,10 @@ export class EnhancedVerificationEngine {
 
     // Load residents with their data
     const residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       include: {
         bankAliases: {
-          where: { isVerified: true },
+          where: { is_verified: true },
           orderBy: { frequency: 'desc' }
         }
       }
@@ -55,7 +55,7 @@ export class EnhancedVerificationEngine {
     // Build alias lookup map
     const bankAliases = new Map<string, string[]>()
     for (const resident of residents) {
-      const aliases = resident.bankAliases.map((alias: any) => alias.bankName)
+      const aliases = resident.bankAliases.map((alias: any) => alias.bank_name)
       bankAliases.set(resident.id, aliases)
     }
 
@@ -82,8 +82,8 @@ export class EnhancedVerificationEngine {
       where: {
         action: 'MANUAL_CONFIRM',
         OR: [
-          { verifiedBy: 'HISTORICAL_IMPORT' },
-          { verifiedBy: 'SYSTEM' }
+          { verified_by: 'HISTORICAL_IMPORT' },
+          { verified_by: 'SYSTEM' }
         ]
       },
       include: {
@@ -98,14 +98,14 @@ export class EnhancedVerificationEngine {
     // Group by resident and build patterns
     for (const verification of historicalVerifications) {
       if (verification.mutation?.matchedResident) {
-        const residentId = verification.mutation.matchedResident.id
+        const resident_id = verification.mutation.matchedResident.id
         const description = verification.mutation.description
         
-        if (!patterns.has(residentId)) {
-          patterns.set(residentId, [])
+        if (!patterns.has(resident_id)) {
+          patterns.set(resident_id, [])
         }
         
-        patterns.get(residentId)!.push({
+        patterns.get(resident_id)!.push({
           description,
           amount: verification.mutation.amount,
           confidence: verification.confidence,
@@ -126,12 +126,12 @@ export class EnhancedVerificationEngine {
       const learningRecords = await (db as any).verificationLearningData.findMany()
       
       for (const record of learningRecords) {
-        learningData.set(record.residentId, {
-          namePatterns: JSON.parse(record.namePatterns || '[]'),
-          addressPatterns: JSON.parse(record.addressPatterns || '[]'),
-          transactionPatterns: JSON.parse(record.transactionPatterns || '[]'),
-          confidenceScores: JSON.parse(record.confidenceScores || '[]'),
-          lastUpdated: record.lastUpdated
+        learningData.set(record.resident_id, {
+          name_patterns: JSON.parse(record.name_patterns || '[]'),
+          address_patterns: JSON.parse(record.address_patterns || '[]'),
+          transaction_patterns: JSON.parse(record.transaction_patterns || '[]'),
+          confidence_scores: JSON.parse(record.confidence_scores || '[]'),
+          last_updated: record.last_updated
         })
       }
     } catch (error) {
@@ -158,7 +158,7 @@ export class EnhancedVerificationEngine {
       return {
         confidence: 0,
         strategy: 'OMITTED',
-        factors: [categorization.omitReason || 'Transaction omitted from verification'],
+        factors: [categorization.omit_reason || 'Transaction omitted from verification'],
         requiresAIVerification: false,
         requiresManualVerification: false,
         reasoning: `Transaction categorized as ${categorization.category} and omitted from verification`
@@ -248,37 +248,37 @@ export class EnhancedVerificationEngine {
 
   private async matchByPaymentIndex(transaction: BankTransaction): Promise<EnhancedVerificationResult | null> {
     if (!transaction.amount) return null
-    const paymentIndex = extractPaymentIndexFromAmount(transaction.amount)
-    if (!paymentIndex) return null
+    const payment_index = extractPaymentIndexFromAmount(transaction.amount)
+    if (!payment_index) return null
 
-    const resident = this.context!.residents.find(r => r.paymentIndex === paymentIndex)
+    const resident = this.context!.residents.find(r => r.payment_index === payment_index)
     if (!resident) return null
 
     // Try to find matching payment within date range
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: resident.id,
+        resident_id: resident.id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     const confidence = matchingPayment ? 0.95 : 0.9
-    const factors = [`Payment index match: ${paymentIndex}`]
+    const factors = [`Payment index match: ${payment_index}`]
     
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       factors.push(`Payment found within ${dateDiff} days`)
     }
 
     return {
-      residentId: resident.id,
-      paymentId: matchingPayment?.id,
+      resident_id: resident.id,
+      payment_id: matchingPayment?.id,
       confidence,
       strategy: 'PAYMENT_INDEX',
       factors,
@@ -291,7 +291,7 @@ export class EnhancedVerificationEngine {
     const descriptionData = parseDescription(transaction.description)
     if (descriptionData.names.length === 0) return null
 
-    let bestMatch: { residentId: string; similarity: number; matchedName: string } | null = null
+    let bestMatch: { resident_id: string; similarity: number; matchedName: string } | null = null
 
     // Check against resident names and aliases
     for (const name of descriptionData.names) {
@@ -300,7 +300,7 @@ export class EnhancedVerificationEngine {
         const primarySimilarity = this.calculateNameSimilarity(name, resident.name)
         if (primarySimilarity > 0.7 && primarySimilarity > (bestMatch?.similarity || 0)) {
           bestMatch = {
-            residentId: resident.id,
+            resident_id: resident.id,
             similarity: primarySimilarity,
             matchedName: resident.name
           }
@@ -312,7 +312,7 @@ export class EnhancedVerificationEngine {
           const aliasSimilarity = this.calculateNameSimilarity(name, alias)
           if (aliasSimilarity > 0.7 && aliasSimilarity > (bestMatch?.similarity || 0)) {
             bestMatch = {
-              residentId: resident.id,
+              resident_id: resident.id,
               similarity: aliasSimilarity,
               matchedName: alias
             }
@@ -325,30 +325,30 @@ export class EnhancedVerificationEngine {
 
     // Try to find matching payment
     if (!transaction.amount) return null
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: bestMatch.residentId,
+        resident_id: bestMatch.resident_id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     const confidence = matchingPayment ? bestMatch.similarity * 0.9 : bestMatch.similarity * 0.7
     const factors = [`Name match: ${bestMatch.matchedName} (${Math.round(bestMatch.similarity * 100)}%)`]
     
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       factors.push(`Payment found within ${dateDiff} days`)
     }
 
     return {
-      residentId: bestMatch.residentId,
-      paymentId: matchingPayment?.id,
+      resident_id: bestMatch.resident_id,
+      payment_id: matchingPayment?.id,
       confidence,
       strategy: 'NAME_MATCH',
       factors,
@@ -363,8 +363,8 @@ export class EnhancedVerificationEngine {
 
     // Try exact match first
     let resident = this.context!.residents.find(r =>
-      r.blok && r.houseNumber &&
-      `${r.blok} / ${r.houseNumber}` === addressPattern
+      r.blok && r.house_number &&
+      `${r.blok} / ${r.house_number}` === addressPattern
     )
 
     // If no exact match, try fuzzy address matching
@@ -376,17 +376,17 @@ export class EnhancedVerificationEngine {
 
     // Try to find matching payment
     if (!transaction.amount) return null
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: resident.id,
+        resident_id: resident.id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     // Calculate confidence based on match type and payment
@@ -395,21 +395,21 @@ export class EnhancedVerificationEngine {
     
     // Reduce confidence for fuzzy matches
     if (!this.context!.residents.find(r =>
-      r.blok && r.houseNumber &&
-      `${r.blok} / ${r.houseNumber}` === addressPattern
+      r.blok && r.house_number &&
+      `${r.blok} / ${r.house_number}` === addressPattern
     )) {
       confidence -= 0.1 // Reduce confidence for fuzzy address match
       factors.push('Fuzzy address match')
     }
     
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       factors.push(`Payment found within ${dateDiff} days`)
     }
 
     return {
-      residentId: resident.id,
-      paymentId: matchingPayment?.id,
+      resident_id: resident.id,
+      payment_id: matchingPayment?.id,
       confidence,
       strategy: 'ADDRESS_PATTERN',
       factors,
@@ -428,10 +428,10 @@ export class EnhancedVerificationEngine {
     let bestMatch: { resident: any; score: number } | null = null
     
     for (const resident of this.context!.residents) {
-      if (!resident.blok || !resident.houseNumber) continue
+      if (!resident.blok || !resident.house_number) continue
       
       // Normalize resident address for comparison
-      const residentAddress = `${resident.blok} / ${resident.houseNumber}`.replace(/\s+/g, ' ').trim()
+      const residentAddress = `${resident.blok} / ${resident.house_number}`.replace(/\s+/g, ' ').trim()
       
       // Check for exact match first
       if (residentAddress === normalizedPattern) {
@@ -476,46 +476,46 @@ export class EnhancedVerificationEngine {
   }
 
   private async matchByHistoricalPattern(transaction: BankTransaction): Promise<EnhancedVerificationResult | null> {
-    let bestMatch: { residentId: string; similarity: number } | null = null
+    let bestMatch: { resident_id: string; similarity: number } | null = null
 
-    for (const [residentId, patterns] of this.context!.historicalPatterns) {
+    for (const [resident_id, patterns] of this.context!.historicalPatterns) {
       const similarity = this.calculatePatternSimilarity(transaction, patterns)
       if (similarity > 0.7 && similarity > (bestMatch?.similarity || 0)) {
-        bestMatch = { residentId, similarity }
+        bestMatch = { resident_id, similarity }
       }
     }
 
     if (!bestMatch) return null
 
-    const resident = this.context!.residents.find(r => r.id === bestMatch!.residentId)
+    const resident = this.context!.residents.find(r => r.id === bestMatch!.resident_id)
     if (!resident) return null
 
     // Try to find matching payment
     if (!transaction.amount) return null
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: resident.id,
+        resident_id: resident.id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     const confidence = matchingPayment ? bestMatch.similarity * 0.85 : bestMatch.similarity * 0.75
     const factors = [`Historical pattern match: ${Math.round(bestMatch.similarity * 100)}%`]
     
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       factors.push(`Payment found within ${dateDiff} days`)
     }
 
     return {
-      residentId: resident.id,
-      paymentId: matchingPayment?.id,
+      resident_id: resident.id,
+      payment_id: matchingPayment?.id,
       confidence,
       strategy: 'HISTORICAL_PATTERN',
       factors,
@@ -541,30 +541,30 @@ export class EnhancedVerificationEngine {
 
     // Try to find matching payment
     if (!transaction.amount) return null
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: resident.id,
+        resident_id: resident.id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     const confidence = matchingPayment ? 0.8 : 0.7
     const factors = [`IPL transaction: ${iplInfo.keywords.join(', ')}`]
     
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       factors.push(`Payment found within ${dateDiff} days`)
     }
 
     return {
-      residentId: resident.id,
-      paymentId: matchingPayment?.id,
+      resident_id: resident.id,
+      payment_id: matchingPayment?.id,
       confidence,
       strategy: 'IPL_PATTERN',
       factors,
@@ -708,35 +708,35 @@ export class EnhancedVerificationEngine {
     }
 
     // Update learning data based on verification results
-    if (verificationResult.action === 'MANUAL_CONFIRM' && mutation.matchedResidentId) {
-      const residentId = mutation.matchedResidentId
+    if (verificationResult.action === 'MANUAL_CONFIRM' && mutation.matched_resident_id) {
+      const resident_id = mutation.matched_resident_id
       const description = mutation.description
       
       // Extract patterns from successful verification
-      const namePatterns = this.extractNamePatterns(description)
-      const addressPatterns = this.extractAddressPatterns(description)
-      const transactionPatterns = this.extractTransactionPatterns(description)
+      const name_patterns = this.extractNamePatterns(description)
+      const address_patterns = this.extractAddressPatterns(description)
+      const transaction_patterns = this.extractTransactionPatterns(description)
       
       // Get or create learning data for this resident
-      let learningData = this.context!.learningData.get(residentId) || {
-        namePatterns: [],
-        addressPatterns: [],
-        transactionPatterns: [],
-        confidenceScores: [],
-        lastUpdated: new Date()
+      let learningData = this.context!.learningData.get(resident_id) || {
+        name_patterns: [],
+        address_patterns: [],
+        transaction_patterns: [],
+        confidence_scores: [],
+        last_updated: new Date()
       }
       
       // Merge new patterns
-      learningData.namePatterns = [...new Set([...learningData.namePatterns, ...namePatterns])]
-      learningData.addressPatterns = [...new Set([...learningData.addressPatterns, ...addressPatterns])]
-      learningData.transactionPatterns = [...new Set([...learningData.transactionPatterns, ...transactionPatterns])]
-      learningData.confidenceScores.push(verificationResult.confidence || 0.5)
-      learningData.lastUpdated = new Date()
+      learningData.name_patterns = [...new Set([...learningData.name_patterns, ...name_patterns])]
+      learningData.address_patterns = [...new Set([...learningData.address_patterns, ...address_patterns])]
+      learningData.transaction_patterns = [...new Set([...learningData.transaction_patterns, ...transaction_patterns])]
+      learningData.confidence_scores.push(verificationResult.confidence || 0.5)
+      learningData.last_updated = new Date()
       
-      this.context!.learningData.set(residentId, learningData)
+      this.context!.learningData.set(resident_id, learningData)
       
       // Persist to database
-      await this.persistLearningData(residentId, learningData)
+      await this.persistLearningData(resident_id, learningData)
     }
   }
 
@@ -746,37 +746,37 @@ export class EnhancedVerificationEngine {
   }
 
   private extractAddressPatterns(description: string): string[] {
-    const addressPatterns: string[] = []
+    const address_patterns: string[] = []
     const addressMatch = description.match(/C\s*\d+\s*[\/\s]?\s*\d+/i)
     if (addressMatch) {
-      addressPatterns.push(addressMatch[0])
+      address_patterns.push(addressMatch[0])
     }
-    return addressPatterns
+    return address_patterns
   }
 
   private extractTransactionPatterns(description: string): string[] {
     return description.split(/\s+/).filter(word => word.length > 3)
   }
 
-  private async persistLearningData(residentId: string, data: any): Promise<void> {
+  private async persistLearningData(resident_id: string, data: any): Promise<void> {
     try {
       // Use type assertion to bypass TypeScript checking for now
       await (db as any).verificationLearningData.upsert({
-        where: { residentId },
+        where: { resident_id },
         update: {
-          namePatterns: JSON.stringify(data.namePatterns),
-          addressPatterns: JSON.stringify(data.addressPatterns),
-          transactionPatterns: JSON.stringify(data.transactionPatterns),
-          confidenceScores: JSON.stringify(data.confidenceScores),
-          lastUpdated: data.lastUpdated
+          name_patterns: JSON.stringify(data.name_patterns),
+          address_patterns: JSON.stringify(data.address_patterns),
+          transaction_patterns: JSON.stringify(data.transaction_patterns),
+          confidence_scores: JSON.stringify(data.confidence_scores),
+          last_updated: data.last_updated
         },
         create: {
-          residentId,
-          namePatterns: JSON.stringify(data.namePatterns),
-          addressPatterns: JSON.stringify(data.addressPatterns),
-          transactionPatterns: JSON.stringify(data.transactionPatterns),
-          confidenceScores: JSON.stringify(data.confidenceScores),
-          lastUpdated: data.lastUpdated
+          resident_id,
+          name_patterns: JSON.stringify(data.name_patterns),
+          address_patterns: JSON.stringify(data.address_patterns),
+          transaction_patterns: JSON.stringify(data.transaction_patterns),
+          confidence_scores: JSON.stringify(data.confidence_scores),
+          last_updated: data.last_updated
         }
       })
     } catch (error) {
@@ -788,7 +788,7 @@ export class EnhancedVerificationEngine {
    * Find all bank mutations that match a specific payment
    * This allows for one payment to match multiple bank entries
    */
-  async findMatchingMutationsForPayment(paymentId: string): Promise<{
+  async findMatchingMutationsForPayment(payment_id: string): Promise<{
     payment: any
     mutations: Array<{
       mutation: any
@@ -803,7 +803,7 @@ export class EnhancedVerificationEngine {
 
     // Get the payment details
     const payment = await db.payment.findUnique({
-      where: { id: paymentId },
+      where: { id: payment_id },
       include: {
         resident: true
       }
@@ -817,19 +817,19 @@ export class EnhancedVerificationEngine {
     const mutations = await db.bankMutation.findMany({
       where: {
         OR: [
-          { matchedPaymentId: paymentId }, // Already matched
+          { matched_payment_id: payment_id }, // Already matched
           {
-            matchedPaymentId: null, // Not matched yet
-            isVerified: false // Not verified
+            matched_payment_id: null, // Not matched yet
+            is_verified: false // Not verified
           }
         ],
         amount: payment.amount, // Exact amount match
-        transactionDate: {
-          gte: new Date(new Date(payment.paymentDate).getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(new Date(payment.paymentDate).getTime() + 7 * 24 * 60 * 60 * 1000)
+        transaction_date: {
+          gte: new Date(new Date(payment.payment_date).getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(new Date(payment.payment_date).getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { transactionDate: 'desc' }
+      orderBy: { transaction_date: 'desc' }
     })
 
     // Calculate match confidence for each mutation
@@ -841,16 +841,16 @@ export class EnhancedVerificationEngine {
     }> = []
     for (const mutation of mutations) {
       const transaction: BankTransaction = {
-        date: mutation.transactionDate.toISOString().split('T')[0],
+        date: mutation.transaction_date.toISOString().split('T')[0],
         description: mutation.description,
         amount: mutation.amount,
-        transactionType: mutation.referenceNumber as 'CR' | 'DB' | null
+        transaction_type: mutation.reference_number as 'CR' | 'DB' | null
       }
 
       const result = await this.performRuleBasedMatching(transaction)
       
       // Only include if it matches the payment's resident
-      if (result.residentId === payment.residentId) {
+      if (result.resident_id === payment.resident_id) {
         matchingMutations.push({
           mutation,
           confidence: result.confidence,
@@ -877,7 +877,7 @@ export class EnhancedVerificationEngine {
         category: string
         confidence: number
         shouldOmit: boolean
-        omitReason?: string
+        omit_reason?: string
       }
     }>
     omitted: number
@@ -889,7 +889,7 @@ export class EnhancedVerificationEngine {
         category: string
         confidence: number
         shouldOmit: boolean
-        omitReason?: string
+        omit_reason?: string
       }
     }> = []
     let omitted = 0
@@ -925,7 +925,7 @@ export class EnhancedVerificationEngine {
     try {
       // Get all mutations in the batch
       const mutations = await db.bankMutation.findMany({
-        where: { uploadBatch: batchId }
+        where: { upload_batch: batchId }
       })
 
       const errors: string[] = []
@@ -936,10 +936,10 @@ export class EnhancedVerificationEngine {
         try {
           // Create a BankTransaction object for categorization
           const transaction: BankTransaction = {
-            date: mutation.transactionDate.toISOString().split('T')[0],
+            date: mutation.transaction_date.toISOString().split('T')[0],
             description: mutation.description,
             amount: mutation.amount,
-            transactionType: mutation.referenceNumber as 'CR' | 'DB' | null
+            transaction_type: mutation.reference_number as 'CR' | 'DB' | null
           }
 
           // Categorize the transaction
@@ -978,14 +978,14 @@ export class EnhancedVerificationEngine {
   /**
    * Match multiple bank mutations to a single payment
    */
-  async matchMultipleMutationsToPayment(paymentId: string, mutationIds: string[]): Promise<boolean> {
+  async matchMultipleMutationsToPayment(payment_id: string, mutationIds: string[]): Promise<boolean> {
     try {
       // Verify all mutations exist and are not already matched to other payments
       const mutations = await db.bankMutation.findMany({
         where: {
           id: { in: mutationIds },
-          matchedPaymentId: null, // Not already matched
-          isVerified: false // Not verified
+          matched_payment_id: null, // Not already matched
+          is_verified: false // Not verified
         }
       })
 
@@ -995,7 +995,7 @@ export class EnhancedVerificationEngine {
 
       // Get payment details
       const payment = await db.payment.findUnique({
-        where: { id: paymentId }
+        where: { id: payment_id }
       })
 
       if (!payment) {
@@ -1006,11 +1006,11 @@ export class EnhancedVerificationEngine {
       await db.bankMutation.updateMany({
         where: { id: { in: mutationIds } },
         data: {
-          matchedPaymentId: paymentId,
-          matchedResidentId: payment.residentId,
-          isVerified: true,
-          verifiedAt: new Date(),
-          verifiedBy: 'MULTIPLE_MATCH'
+          matched_payment_id: payment_id,
+          matched_resident_id: payment.resident_id,
+          is_verified: true,
+          verified_at: new Date(),
+          verified_by: 'MULTIPLE_MATCH'
         }
       })
 
@@ -1026,11 +1026,11 @@ export class EnhancedVerificationEngine {
    * Omit a bank mutation from verification process
    * This will prevent the mutation from appearing in verification lists
    */
-  async omitBankMutation(mutationId: string, omitReason: string): Promise<boolean> {
+  async omitBankMutation(mutation_id: string, omit_reason: string): Promise<boolean> {
     try {
       // Check if mutation exists
       const mutation = await db.bankMutation.findUnique({
-        where: { id: mutationId }
+        where: { id: mutation_id }
       })
 
       if (!mutation) {
@@ -1039,11 +1039,11 @@ export class EnhancedVerificationEngine {
 
       // Update the mutation to mark it as omitted
       await db.bankMutation.update({
-        where: { id: mutationId },
+        where: { id: mutation_id },
         data: {
-          isVerified: true,
-          verifiedAt: new Date(),
-          verifiedBy: 'OMITTED',
+          is_verified: true,
+          verified_at: new Date(),
+          verified_by: 'OMITTED',
           // Store omit reason in verification history
         }
       })
@@ -1051,10 +1051,10 @@ export class EnhancedVerificationEngine {
       // Create verification history record
       await (db as any).bankMutationVerification.create({
         data: {
-          mutationId,
+          mutation_id,
           action: 'MANUAL_OMIT',
-          notes: omitReason,
-          verifiedBy: 'USER',
+          notes: omit_reason,
+          verified_by: 'USER',
           confidence: 1.0
         }
       })
@@ -1071,7 +1071,7 @@ export class EnhancedVerificationEngine {
    * This allows for corrections to previously verified mutations
    */
   async editBankMutationVerification(
-    mutationId: string,
+    mutation_id: string,
     newResidentId?: string,
     newPaymentId?: string,
     newNotes?: string,
@@ -1080,7 +1080,7 @@ export class EnhancedVerificationEngine {
     try {
       // Check if mutation exists
       const mutation = await db.bankMutation.findUnique({
-        where: { id: mutationId }
+        where: { id: mutation_id }
       })
 
       if (!mutation) {
@@ -1088,32 +1088,32 @@ export class EnhancedVerificationEngine {
       }
 
       // Store previous match data for verification history
-      const previousMatchedPaymentId = mutation.matchedPaymentId
-      const previousMatchedResidentId = mutation.matchedResidentId
+      const previous_matched_payment_id = mutation.matched_payment_id
+      const previousMatchedResidentId = mutation.matched_resident_id
 
       // Update the mutation with new verification data
       await db.bankMutation.update({
-        where: { id: mutationId },
+        where: { id: mutation_id },
         data: {
-          matchedPaymentId: newPaymentId,
-          matchedResidentId: newResidentId,
-          matchScore: newMatchScore,
-          isVerified: true,
-          verifiedAt: new Date(),
-          verifiedBy: 'MANUAL_EDIT'
+          matched_payment_id: newPaymentId,
+          matched_resident_id: newResidentId,
+          match_score: newMatchScore,
+          is_verified: true,
+          verified_at: new Date(),
+          verified_by: 'MANUAL_EDIT'
         }
       })
 
       // Create verification history record
       await (db as any).bankMutationVerification.create({
         data: {
-          mutationId,
+          mutation_id,
           action: 'MANUAL_OVERRIDE',
           notes: newNotes || 'Manual edit of verification',
-          verifiedBy: 'USER',
+          verified_by: 'USER',
           confidence: newMatchScore || 1.0,
-          previousMatchedPaymentId,
-          newMatchedPaymentId: newPaymentId
+          previous_matched_payment_id,
+          new_matched_payment_id: newPaymentId
         }
       })
 
@@ -1132,15 +1132,15 @@ export class EnhancedVerificationEngine {
     try {
       const omittedMutations = await db.bankMutation.findMany({
         where: {
-          verifiedBy: 'OMITTED'
+          verified_by: 'OMITTED'
         },
         include: {
           verificationHistory: {
-            orderBy: { createdAt: 'desc' },
+            orderBy: { created_at: 'desc' },
             take: 1
           }
         },
-        orderBy: { verifiedAt: 'desc' }
+        orderBy: { verified_at: 'desc' }
       })
 
       return omittedMutations
@@ -1153,37 +1153,37 @@ export class EnhancedVerificationEngine {
   /**
    * Restore an omitted bank mutation to verification pool
    */
-  async restoreOmittedBankMutation(mutationId: string): Promise<boolean> {
+  async restoreOmittedBankMutation(mutation_id: string): Promise<boolean> {
     try {
       // Check if mutation exists and is omitted
       const mutation = await db.bankMutation.findUnique({
-        where: { id: mutationId }
+        where: { id: mutation_id }
       })
 
-      if (!mutation || mutation.verifiedBy !== 'OMITTED') {
+      if (!mutation || mutation.verified_by !== 'OMITTED') {
         throw new Error('Bank mutation not found or not omitted')
       }
 
       // Update the mutation to restore it to verification pool
       await db.bankMutation.update({
-        where: { id: mutationId },
+        where: { id: mutation_id },
         data: {
-          isVerified: false,
-          verifiedAt: null,
-          verifiedBy: null,
-          matchedPaymentId: null,
-          matchedResidentId: null,
-          matchScore: null
+          is_verified: false,
+          verified_at: null,
+          verified_by: null,
+          matched_payment_id: null,
+          matched_resident_id: null,
+          match_score: null
         }
       })
 
       // Create verification history record
       await (db as any).bankMutationVerification.create({
         data: {
-          mutationId,
+          mutation_id,
           action: 'SYSTEM_UNMATCH',
           notes: 'Restored omitted mutation to verification pool',
-          verifiedBy: 'SYSTEM',
+          verified_by: 'SYSTEM',
           confidence: 0
         }
       })

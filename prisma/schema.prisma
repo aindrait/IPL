@@ -13,14 +13,14 @@ model User {
   name      String?
   password  String
   role      UserRole @default(ADMIN)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  created_at DateTime @default(now()) 
+  updated_at DateTime @updatedAt 
 
   // Relations
   residents Resident[]
   payments  Payment[]
   reminders Reminder[]
-  paymentSchedules PaymentSchedule[]
+  payment_schedules PaymentSchedule[]
 
   @@map("users")
 }
@@ -34,23 +34,23 @@ model Resident {
   rt           Int      // RT number
   rw           Int      // RW number
   blok         String?  // BLOK identifier (e.g., "C11")
-  houseNumber  String?  // House number (e.g., "9")
-  paymentIndex Int?     @unique // Generated from blok and houseNumber
+  house_number  String?   // House number (e.g., "9")
+  payment_index Int?     @unique  // Generated from blok and houseNumber
   ownership    HouseOwnership? // House ownership status (milik/sewa)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  is_active     Boolean  @default(true) 
+  created_at    DateTime @default(now()) 
+  updated_at    DateTime @updatedAt 
 
   // Relations
-  createdBy    User     @relation(fields: [createdById], references: [id])
-  createdById   String
+  created_by    User     @relation(fields: [created_by_id], references: [id])
+  created_by_id String   
   payments     Payment[]
   reminders    Reminder[]
-  rtRelation   RT?      @relation(fields: [rtId], references: [id])
-  rtId         String?
-  scheduleItems PaymentScheduleItem[]
-  bankAliases  ResidentBankAlias[]
-  bankMutations BankMutation[]
+  rt_relation   RT?      @relation(fields: [rt_id], references: [id])
+  rt_id         String?  
+  schedule_items PaymentScheduleItem[]
+  bank_aliases  ResidentBankAlias[]
+  bank_mutations BankMutation[]
 
   @@map("residents")
 }
@@ -61,14 +61,14 @@ model PaymentPeriod {
   month       Int      // 1-12
   year        Int      // 2024
   amount      Float    // IPL amount for this period
-  dueDate     DateTime // Payment deadline
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  due_date     DateTime  // Payment deadline
+  is_active    Boolean  @default(true) 
+  created_at   DateTime @default(now()) 
+  updated_at   DateTime @updatedAt 
 
   // Relations
   schedules PaymentSchedule[]
-  scheduleItems PaymentScheduleItem[]
+  schedule_items PaymentScheduleItem[]
 
   @@map("payment_periods")
 }
@@ -76,22 +76,22 @@ model PaymentPeriod {
 model Payment {
   id           String        @id @default(cuid())
   amount       Float
-  paymentDate  DateTime
+  payment_date  DateTime      
   status       PaymentStatus @default(PENDING)
-  paymentMethod String?      // e.g., "Transfer Bank", "Tunai"
+  payment_method String?       // e.g., "Transfer Bank", "Tunai"
   notes        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  created_at    DateTime      @default(now()) 
+  updated_at    DateTime      @updatedAt 
 
   // Relations
-  resident   Resident      @relation(fields: [residentId], references: [id])
-  residentId String
-  createdBy  User          @relation(fields: [createdById], references: [id])
-  createdById String
+  resident   Resident      @relation(fields: [resident_id], references: [id])
+  resident_id String        
+  created_by  User          @relation(fields: [created_by_id], references: [id])
+  created_by_id String       
   proofs     PaymentProof[]
-  scheduleItems PaymentScheduleItem[] // One payment can cover multiple schedule items
+  schedule_items PaymentScheduleItem[] // One payment can cover multiple schedule items
   verifications PaymentVerification[] // Payment verification history
-  bankMutations BankMutation[] // Bank mutations that match this payment
+  bank_mutations BankMutation[] // Bank mutations that match this payment
 
   @@map("payments")
 }
@@ -99,16 +99,16 @@ model Payment {
 model PaymentProof {
   id        String   @id @default(cuid())
   filename  String
-  filePath  String
-  fileSize  Int
-  mimeType  String
+  file_path  String   
+  file_size  Int      
+  mime_type  String   
   analyzed  Boolean  @default(false)
-  analysisResult String? // JSON string containing AI analysis results
-  createdAt DateTime @default(now())
+  analysis_result String?  // JSON string containing AI analysis results
+  created_at DateTime @default(now()) 
 
   // Relations
-  payment Payment @relation(fields: [paymentId], references: [id])
-  paymentId String
+  payment Payment @relation(fields: [payment_id], references: [id])
+  payment_id String 
 
   @@map("payment_proofs")
 }
@@ -117,18 +117,18 @@ model Reminder {
   id        String           @id @default(cuid())
   type      ReminderType
   message   String
-  sentAt    DateTime?
+  sent_at    DateTime?       
   status    ReminderStatus   @default(PENDING)
-  sentVia   String?          // e.g., "whatsapp", "sms", "email"
+  sent_via   String?          // e.g., "whatsapp", "sms", "email"
   response  String?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  created_at DateTime         @default(now()) 
+  updated_at DateTime         @updatedAt 
 
   // Relations
-  resident Resident @relation(fields: [residentId], references: [id])
-  residentId String
-  createdBy User     @relation(fields: [createdById], references: [id])
-  createdById String
+  resident Resident @relation(fields: [resident_id], references: [id])
+  resident_id String 
+  created_by User     @relation(fields: [created_by_id], references: [id])
+  created_by_id String 
 
   @@map("reminders")
 }
@@ -137,17 +137,17 @@ model PaymentSchedule {
   id          String   @id @default(cuid())
   name        String   // e.g., "Jadwal Pembayaran Q1 2024"
   description String?
-  startDate   DateTime // Schedule start date
-  endDate     DateTime // Schedule end date
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  start_date   DateTime  // Schedule start date
+  end_date     DateTime  // Schedule end date
+  is_active    Boolean  @default(true) 
+  created_at   DateTime @default(now()) 
+  updated_at   DateTime @updatedAt 
 
   // Relations
-  period     PaymentPeriod @relation(fields: [periodId], references: [id])
-  periodId   String
-  createdBy  User          @relation(fields: [createdById], references: [id])
-  createdById String
+  period     PaymentPeriod @relation(fields: [period_id], references: [id])
+  period_id   String        
+  created_by  User          @relation(fields: [created_by_id], references: [id])
+  created_by_id String       
   items      PaymentScheduleItem[]
 
   @@map("payment_schedules")
@@ -160,26 +160,26 @@ model PaymentScheduleItem {
   label         String?                   // e.g., "THR", "Bulan Januari"
   status        PaymentScheduleItemStatus @default(PLANNED)
   amount        Float
-  dueDate       DateTime
-  paidDate      DateTime?
+  due_date       DateTime                  
+  paid_date      DateTime?                 
   notes         String?
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  created_at     DateTime                  @default(now()) 
+  updated_at     DateTime                  @updatedAt 
 
   // Relations
-  schedule     PaymentSchedule            @relation(fields: [scheduleId], references: [id])
-  scheduleId   String
-  period       PaymentPeriod              @relation(fields: [periodId], references: [id])
-  periodId     String
-  resident     Resident                   @relation(fields: [residentId], references: [id])
-  residentId   String
-  payment      Payment?                   @relation(fields: [paymentId], references: [id])
-  paymentId    String?                    // Remove @unique to allow one-to-many relationship
+  schedule     PaymentSchedule            @relation(fields: [schedule_id], references: [id])
+  schedule_id   String                     
+  period       PaymentPeriod              @relation(fields: [period_id], references: [id])
+  period_id     String                     
+  resident     Resident                   @relation(fields: [resident_id], references: [id])
+  resident_id   String                     
+  payment      Payment?                   @relation(fields: [payment_id], references: [id])
+  payment_id    String?                     // Remove @unique to allow one-to-many relationship
 
-  @@index([residentId])
-  @@index([periodId])
-  @@index([scheduleId])
-  @@index([paymentId])
+  @@index([resident_id])
+  @@index([period_id])
+  @@index([schedule_id])
+  @@index([payment_id])
   @@map("payment_schedule_items")
 }
 
@@ -203,9 +203,9 @@ model RT {
   rw        Int      // RW number
   chairman  String?  // Name of RT chairman
   phone     String?  // Contact phone
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  is_active  Boolean  @default(true) 
+  created_at DateTime @default(now()) 
+  updated_at DateTime @updatedAt 
 
   // Relations
   residents Resident[]
@@ -222,20 +222,20 @@ enum UserRole {
 
 model PaymentVerification {
   id                 String                    @id @default(cuid())
-  paymentId          String
-  verifiedBy         String                    // Admin user ID or "SYSTEM"
-  verificationMethod PaymentVerificationMethod
+  payment_id          String                    
+  verified_by         String                     // Admin user ID or "SYSTEM"
+  verification_method PaymentVerificationMethod
   status             PaymentStatus
   notes              String?                   // Verification notes
-  verificationData   String?                   // JSON string for additional data
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  verification_data   String?                    // JSON string for additional data
+  created_at          DateTime                  @default(now()) 
+  updated_at          DateTime                  @updatedAt 
 
   // Relations
-  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
 
-  @@index([paymentId])
-  @@index([verifiedBy])
+  @@index([payment_id])
+  @@index([verified_by])
   @@map("payment_verifications")
 }
 
@@ -251,8 +251,8 @@ model Settings {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String   // JSON string for flexible configuration
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  created_at DateTime @default(now()) 
+  updated_at DateTime @updatedAt 
 
   @@map("settings")
 }
@@ -281,84 +281,84 @@ enum ReminderStatus {
 // Bank Mutation Verification Models
 model BankMutation {
   id              String   @id @default(cuid())
-  transactionDate DateTime // Bank transaction date
+  transaction_date DateTime  // Bank transaction date
   description     String   // Bank description/memo
   amount          Float    // Transaction amount
   balance         Float?   // Account balance after transaction
-  referenceNumber String?  // Bank reference number
-  transactionType String?  // CR (Credit) or DB (Debit)
+  reference_number String?   // Bank reference number
+  transaction_type String?   // CR (Credit) or DB (Debit)
   
   // Transaction categorization
   category        BankTransactionCategory? // Transaction category
-  isOmitted       Boolean  @default(false) // Flag to exclude from verification
-  omitReason      String?  // Reason for omission
+  is_omitted       Boolean  @default(false)  // Flag to exclude from verification
+  omit_reason      String?   // Reason for omission
   
   // Verification fields
-  isVerified      Boolean  @default(false)
-  verifiedAt      DateTime?
-  verifiedBy      String?
+  is_verified      Boolean  @default(false) 
+  verified_at      DateTime? 
+  verified_by      String?  
   
   // Matching fields
-  matchedPaymentId String?
-  matchedResidentId String?
-  matchScore      Float?   // AI confidence score (0-1)
-  matchingStrategy String? // Which strategy was used for matching
+  matched_payment_id String? 
+  matched_resident_id String? 
+  match_score      Float?    // AI confidence score (0-1)
+  matching_strategy String?  // Which strategy was used for matching
   
   // Original data
-  rawData         String   // JSON of original bank data
-  uploadBatch     String   // Batch identifier for uploaded files
-  fileName        String?  // Original uploaded file name
+  raw_data         String    // JSON of original bank data
+  upload_batch     String    // Batch identifier for uploaded files
+  file_name        String?   // Original uploaded file name
   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  created_at       DateTime @default(now()) 
+  updated_at       DateTime @updatedAt 
   
   // Relations
-  matchedPayment  Payment? @relation(fields: [matchedPaymentId], references: [id])
-  matchedResident Resident? @relation(fields: [matchedResidentId], references: [id])
-  verificationHistory BankMutationVerification[]
+  matched_payment  Payment? @relation(fields: [matched_payment_id], references: [id])
+  matched_resident Resident? @relation(fields: [matched_resident_id], references: [id])
+  verification_history BankMutationVerification[]
 
-  @@index([uploadBatch])
-  @@index([transactionDate])
+  @@index([upload_batch])
+  @@index([transaction_date])
   @@index([amount])
-  @@index([isVerified])
-  @@index([transactionType])
+  @@index([is_verified])
+  @@index([transaction_type])
   @@index([category])
-  @@index([isOmitted])
+  @@index([is_omitted])
   @@map("bank_mutations")
 }
 
 model BankMutationVerification {
   id            String   @id @default(cuid())
-  mutationId    String
+  mutation_id    String   
   action        BankVerificationAction
   confidence    Float?   // AI matching confidence
   notes         String?
-  verifiedBy    String   // User ID or "SYSTEM"
-  previousMatchedPaymentId String?
-  newMatchedPaymentId String?
-  createdAt     DateTime @default(now())
+  verified_by    String    // User ID or "SYSTEM"
+  previous_matched_payment_id String? 
+  new_matched_payment_id String? 
+  created_at     DateTime @default(now()) 
   
-  mutation      BankMutation @relation(fields: [mutationId], references: [id], onDelete: Cascade)
+  mutation      BankMutation @relation(fields: [mutation_id], references: [id], onDelete: Cascade)
 
-  @@index([mutationId])
-  @@index([verifiedBy])
+  @@index([mutation_id])
+  @@index([verified_by])
   @@map("bank_mutation_verifications")
 }
 
 model ResidentBankAlias {
   id          String   @id @default(cuid())
-  residentId  String
-  bankName    String   // Name as appears in bank transfers
-  isVerified  Boolean  @default(false)
+  resident_id  String   
+  bank_name    String    // Name as appears in bank transfers
+  is_verified  Boolean  @default(false) 
   frequency   Int      @default(1) // How often this name appears
-  lastSeen    DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  last_seen    DateTime @default(now()) 
+  created_at   DateTime @default(now()) 
+  updated_at   DateTime @updatedAt 
   
-  resident    Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+  resident    Resident @relation(fields: [resident_id], references: [id], onDelete: Cascade)
   
-  @@unique([residentId, bankName])
-  @@index([bankName])
+  @@unique([resident_id, bank_name])
+  @@index([bank_name])
   @@map("resident_bank_aliases")
 }
 
@@ -387,14 +387,14 @@ enum HouseOwnership {
 
 model VerificationLearningData {
   id            String   @id @default(cuid())
-  residentId    String   @unique
-  namePatterns  String   // JSON string
-  addressPatterns String // JSON string
-  transactionPatterns String // JSON string
-  confidenceScores String // JSON string
-  lastUpdated   DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  resident_id    String   @unique 
+  name_patterns  String    // JSON string
+  address_patterns String  // JSON string
+  transaction_patterns String  // JSON string
+  confidence_scores String  // JSON string
+  last_updated   DateTime @default(now()) 
+  created_at     DateTime @default(now()) 
+  updated_at     DateTime @updatedAt 
 
   @@map("verification_learning_data")
 }

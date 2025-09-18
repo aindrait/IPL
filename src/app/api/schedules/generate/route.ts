@@ -20,7 +20,7 @@ const generateSchema = z.object({
       z.object({
         label: z.string().min(1),
         amount: z.number().min(1),
-        dueDate: z.string().min(1), // ISO date
+        due_date: z.string().min(1), // ISO date
       })
     )
     .optional(),
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         const settingsData = await settingsResponse.json()
         if (settingsData.paymentSettings) {
           defaultAmount = settingsData.paymentSettings.defaultAmount || 250000
-          dueDay = settingsData.paymentSettings.dueDate || 5
+          dueDay = settingsData.paymentSettings.due_date || 5
         }
       }
     } catch (error) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Fetch residents
     let residents: { id: string }[] = []
     if (input.includeAllResidents !== false) {
-      residents = await db.resident.findMany({ where: { isActive: true }, select: { id: true } })
+      residents = await db.resident.findMany({ where: { is_active: true }, select: { id: true } })
     } else if (input.residentIds && input.residentIds.length > 0) {
       residents = await db.resident.findMany({ where: { id: { in: input.residentIds } }, select: { id: true } })
     } else {
@@ -117,16 +117,16 @@ export async function POST(request: NextRequest) {
             month: thrMonth,
             year,
             amount: input.amount,
-            dueDate: thrDueDate,
-            isActive: true,
+            due_date: thrDueDate,
+            is_active: true,
           },
         })
-      } else if (period.amount !== input.amount || period.dueDate.getTime() !== thrDueDate.getTime()) {
+      } else if (period.amount !== input.amount || period.due_date.getTime() !== thrDueDate.getTime()) {
         period = await db.paymentPeriod.update({
           where: { id: period.id },
           data: { 
             amount: input.amount,
-            dueDate: thrDueDate
+            due_date: thrDueDate
           }
         })
       }
@@ -136,10 +136,10 @@ export async function POST(request: NextRequest) {
         data: {
           name: `${input.name} - THR ${year}`,
           description: input.description,
-          startDate: new Date(year, thrMonth - 1, 1),
-          endDate: new Date(year, thrMonth - 1, 31),
-          periodId: period.id,
-          createdById: systemUser.id,
+          start_date: new Date(year, thrMonth - 1, 1),
+          end_date: new Date(year, thrMonth - 1, 31),
+          period_id: period.id,
+          created_by_id: systemUser.id,
         },
       })
       schedulesCreated.push(schedule)
@@ -147,27 +147,26 @@ export async function POST(request: NextRequest) {
       // Check for existing THR items
       const existingItems = await db.paymentScheduleItem.findMany({
         where: {
-          periodId: period.id,
+          period_id: period.id,
           type: 'SPECIAL',
-          residentId: { in: residents.map(r => r.id) }
+          resident_id: { in: residents.map(r => r.id) }
         },
-        select: { residentId: true }
+        select: { resident_id: true }
       })
       
-      const existingResidentIds = new Set(existingItems.map(item => item.residentId))
+      const existingResidentIds = new Set(existingItems.map(item => item.resident_id))
       const newResidents = residents.filter(r => !existingResidentIds.has(r.id))
       
       if (newResidents.length > 0) {
-        const nowIso = new Date().toISOString()
         let inserted = 0
         for (const r of newResidents) {
           await db.$executeRaw`
             INSERT INTO payment_schedule_items (
-              id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
-              scheduleId, periodId, residentId, paymentId
+              id, type, label, status, amount, "due_date", "paid_date", notes, "created_at", "updated_at",
+              "schedule_id", "period_id", "resident_id", "payment_id"
             ) VALUES (
               gen_random_uuid(),
-              ${'SPECIAL'}::"PaymentScheduleItemType", ${'THR ' + year}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${input.amount}, ${thrDueDate}, ${null}, ${'THR - Pembayaran wajib'}, ${nowIso}, ${nowIso},
+              ${'SPECIAL'}::"PaymentScheduleItemType", ${'THR ' + year}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${input.amount}, ${thrDueDate}, ${null}, ${'THR - Pembayaran wajib'}, NOW(), NOW(),
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )
           `
@@ -187,11 +186,11 @@ export async function POST(request: NextRequest) {
       const month = input.startMonth
       
       // Use custom due date if provided, otherwise use the selected month
-      let dueDate: Date
+      let due_date: Date
       if (input.customDueDate) {
-        dueDate = new Date(input.customDueDate)
+        due_date = new Date(input.customDueDate)
       } else {
-        dueDate = new Date(year, month - 1, dueDay)
+        due_date = new Date(year, month - 1, dueDay)
       }
       
       // Create donation period
@@ -210,8 +209,8 @@ export async function POST(request: NextRequest) {
             month,
             year,
             amount: input.amount || 0, // Allow 0 for voluntary donations
-            dueDate: dueDate,
-            isActive: true,
+            due_date: due_date,
+            is_active: true,
           },
         })
       }
@@ -221,10 +220,10 @@ export async function POST(request: NextRequest) {
         data: {
           name: `${input.name} - ${getMonthName(month, year)} ${year}`,
           description: input.description,
-          startDate: new Date(year, month - 1, 1),
-          endDate: dueDate,
-          periodId: period.id,
-          createdById: systemUser.id,
+          start_date: new Date(year, month - 1, 1),
+          end_date: due_date,
+          period_id: period.id,
+          created_by_id: systemUser.id,
         },
       })
       schedulesCreated.push(schedule)
@@ -232,14 +231,14 @@ export async function POST(request: NextRequest) {
       // Check for existing donation items
       const existingItems = await db.paymentScheduleItem.findMany({
         where: {
-          periodId: period.id,
+          period_id: period.id,
           type: 'DONATION',
-          residentId: { in: residents.map(r => r.id) }
+          resident_id: { in: residents.map(r => r.id) }
         },
-        select: { residentId: true }
+        select: { resident_id: true }
       })
       
-      const existingResidentIds = new Set(existingItems.map(item => item.residentId))
+      const existingResidentIds = new Set(existingItems.map(item => item.resident_id))
       const newResidents = residents.filter(r => !existingResidentIds.has(r.id))
       
       if (newResidents.length > 0) {
@@ -249,8 +248,8 @@ export async function POST(request: NextRequest) {
         const donationItems = newResidents.map(r => {
           const status: PaymentScheduleItemStatus = input.isMandatory ? 'PLANNED' : 'OPTIONAL'
           const notes = input.isMandatory
-            ? `Sumbangan wajib - jatuh tempo ${dueDate.toLocaleDateString('id-ID')}`
-            : `Sumbangan sukarela - berlaku sampai ${dueDate.toLocaleDateString('id-ID')}`
+            ? `Sumbangan wajib - jatuh tempo ${due_date.toLocaleDateString('id-ID')}`
+            : `Sumbangan sukarela - berlaku sampai ${due_date.toLocaleDateString('id-ID')}`
           
           // For voluntary donations (sukarela), amount should be 0 or null to indicate it's voluntary
           const donationAmount = input.isMandatory ? input.amount : 0
@@ -260,13 +259,13 @@ export async function POST(request: NextRequest) {
             label: input.name,
             status: status,
             amount: donationAmount,
-            dueDate: dueDate,
-            paidDate: null,
+            due_date: due_date,
+            paid_date: null,
             notes: notes,
-            scheduleId: schedule.id,
-            periodId: period.id,
-            residentId: r.id,
-            paymentId: null
+            schedule_id: schedule.id,
+            period_id: period.id,
+            resident_id: r.id,
+            payment_id: null
           }
         })
         
@@ -294,8 +293,8 @@ export async function POST(request: NextRequest) {
             month,
             year,
             amount: input.amount,
-            dueDate: new Date(year, month - 1, dueDay), // Set due date to configured day of each month
-            isActive: true,
+            due_date: new Date(year, month - 1, dueDay), // Set due date to configured day of each month
+            is_active: true,
           },
         })
       } else if (period.amount !== input.amount) {
@@ -311,10 +310,10 @@ export async function POST(request: NextRequest) {
         data: {
           name: `${input.name} - ${getMonthName(month, year)} ${year}`,
           description: input.description,
-          startDate: new Date(year, month - 1, 1),
-          endDate: new Date(year, month, 0),
-          periodId: period.id,
-          createdById: systemUser.id,
+          start_date: new Date(year, month - 1, 1),
+          end_date: new Date(year, month, 0),
+          period_id: period.id,
+          created_by_id: systemUser.id,
         },
       })
       schedulesCreated.push(schedule)
@@ -322,13 +321,13 @@ export async function POST(request: NextRequest) {
       // Check for existing schedule items for these residents in this period
       const existingItems = await db.paymentScheduleItem.findMany({
         where: {
-          periodId: period.id,
-          residentId: { in: residents.map(r => r.id) }
+          period_id: period.id,
+          resident_id: { in: residents.map(r => r.id) }
         },
-        select: { residentId: true }
+        select: { resident_id: true }
       })
       
-      const existingResidentIds = new Set(existingItems.map(item => item.residentId))
+      const existingResidentIds = new Set(existingItems.map(item => item.resident_id))
       
       // Only create items for residents who don't already have a schedule for this period
       const newResidents = residents.filter(r => !existingResidentIds.has(r.id))
@@ -344,29 +343,28 @@ export async function POST(request: NextRequest) {
           label: `${input.scheduleType} Bulan ${getMonthName(month, year)} ${year}`,
           status: 'PLANNED', // IPL is always mandatory
           amount: input.amount,
-          dueDate: period!.dueDate,
-          paidDate: null,
+          due_date: period!.due_date,
+          paid_date: null,
           notes: 'IPL - Pembayaran wajib',
-          scheduleId: schedule.id,
-          periodId: period!.id,
-          residentId: r.id,
-          paymentId: null,
+          schedule_id: schedule.id,
+          period_id: period!.id,
+          resident_id: r.id,
+          payment_id: null,
         }))
 
       // Insert items within a single transaction for performance and atomicity
-      const nowIso = new Date().toISOString()
       const inserted = await db.$transaction(async (tx) => {
         let count = 0
         for (const v of values) {
           // eslint-disable-next-line no-await-in-loop
           await tx.$executeRaw`
             INSERT INTO payment_schedule_items (
-              id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
-              scheduleId, periodId, residentId, paymentId
+              id, type, label, status, amount, "due_date", "paid_date", notes, "created_at", "updated_at",
+              "schedule_id", "period_id", "resident_id", "payment_id"
             ) VALUES (
               gen_random_uuid(),
-              ${v.type}::"PaymentScheduleItemType", ${v.label}, ${v.status}::"PaymentScheduleItemStatus", ${v.amount}, ${v.dueDate}, ${v.paidDate}, ${v.notes}, ${nowIso}, ${nowIso},
-              ${v.scheduleId}, ${v.periodId}, ${v.residentId}, ${v.paymentId}
+              ${v.type}::"PaymentScheduleItemType", ${v.label}, ${v.status}::"PaymentScheduleItemStatus", ${v.amount}, ${v.due_date}, ${v.paid_date}, ${v.notes}, NOW(), NOW(),
+              ${v.schedule_id}, ${v.period_id}, ${v.resident_id}, ${v.payment_id}
             )
           `
           count += 1
@@ -380,7 +378,7 @@ export async function POST(request: NextRequest) {
     // Generate special items if provided
     if (input.specialItems && input.specialItems.length > 0) {
       for (const spec of input.specialItems) {
-        const d = new Date(spec.dueDate)
+        const d = new Date(spec.due_date)
         const year = d.getFullYear()
         const month = d.getMonth() + 1
 
@@ -391,8 +389,8 @@ export async function POST(request: NextRequest) {
             month,
             year,
             amount: spec.amount,
-            dueDate: d,
-            isActive: true,
+            due_date: d,
+            is_active: true,
           },
         })
 
@@ -400,24 +398,24 @@ export async function POST(request: NextRequest) {
           data: {
             name: `${input.name} - ${spec.label} ${year}`,
             description: input.description,
-            startDate: new Date(year, month - 1, 1),
-            endDate: new Date(year, month, 0),
-            periodId: period.id,
-            createdById: systemUser.id,
+            start_date: new Date(year, month - 1, 1),
+            end_date: new Date(year, month, 0),
+            period_id: period.id,
+            created_by_id: systemUser.id,
           },
         })
 
         // Check for existing special items for these residents
         const existingSpecialItems = await db.paymentScheduleItem.findMany({
           where: {
-            periodId: period.id,
-            residentId: { in: residents.map(r => r.id) },
+            period_id: period.id,
+            resident_id: { in: residents.map(r => r.id) },
             type: 'SPECIAL'
           },
-          select: { residentId: true }
+          select: { resident_id: true }
         })
         
-        const existingSpecialResidentIds = new Set(existingSpecialItems.map(item => item.residentId))
+        const existingSpecialResidentIds = new Set(existingSpecialItems.map(item => item.resident_id))
         
         // Only create special items for residents who don't already have this special item
         const newSpecialResidents = residents.filter(r => !existingSpecialResidentIds.has(r.id))
@@ -426,17 +424,16 @@ export async function POST(request: NextRequest) {
           console.log(`All residents already have special items for ${spec.label}`)
         }
         
-        const nowIso = new Date().toISOString()
         let inserted = 0
         for (const r of newSpecialResidents) {
           // eslint-disable-next-line no-await-in-loop
           await db.$executeRaw`
             INSERT INTO payment_schedule_items (
-              id, type, label, status, amount, dueDate, paidDate, notes, createdAt, updatedAt,
-              scheduleId, periodId, residentId, paymentId
+              id, type, label, status, amount, "due_date", "paid_date", notes, "created_at", "updated_at",
+              "schedule_id", "period_id", "resident_id", "payment_id"
             ) VALUES (
               gen_random_uuid(),
-              ${'SPECIAL'}::"PaymentScheduleItemType", ${spec.label}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${period.amount}, ${period.dueDate}, ${null}, ${null}, ${nowIso}, ${nowIso},
+              ${'SPECIAL'}::"PaymentScheduleItemType", ${spec.label}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${period.amount}, ${period.due_date}, ${null}, ${null}, NOW(), NOW(),
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )
           `

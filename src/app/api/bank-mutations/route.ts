@@ -17,40 +17,40 @@ export async function GET(request: NextRequest) {
     const omitted = searchParams.get('omitted')
     const search = searchParams.get('search')?.trim() || ''
 
-    // Build WHERE clauses with robust SQLite datetime handling
+    // Build WHERE clauses with robust PostgreSQL datetime handling
     const whereClauses: string[] = []
     const params: any[] = []
 
     if (year) {
-      whereClauses.push(`EXTRACT(YEAR FROM bm.transactionDate) = $` + (params.length + 1))
-      params.push(year)
+      whereClauses.push(`EXTRACT(YEAR FROM bm.transaction_date) = $` + (params.length + 1))
+      params.push(parseInt(year, 10))
     }
 
     if (month) {
-      whereClauses.push(`EXTRACT(MONTH FROM bm.transactionDate) = $` + (params.length + 1))
-      params.push(month)
+      whereClauses.push(`EXTRACT(MONTH FROM bm.transaction_date) = $` + (params.length + 1))
+      params.push(parseInt(month, 10))
     }
 
     if (verified === 'true') {
-      whereClauses.push(`bm.isVerified = 1`)
+      whereClauses.push(`bm.is_verified = true`)
     } else if (verified === 'false') {
-      whereClauses.push(`bm.isVerified = 0`)
+      whereClauses.push(`bm.is_verified = false`)
     }
 
     if (matched === 'true') {
-      whereClauses.push(`bm.matchedResidentId IS NOT NULL`)
+      whereClauses.push(`bm.matched_resident_id IS NOT NULL`)
     } else if (matched === 'false') {
-      whereClauses.push(`bm.matchedResidentId IS NULL`)
+      whereClauses.push(`bm.matched_resident_id IS NULL`)
     }
 
     if (omitted === 'true') {
-      whereClauses.push(`bm.isOmitted = 1`)
+      whereClauses.push(`bm.is_omitted = true`)
     } else if (omitted === 'false') {
-      whereClauses.push(`bm.isOmitted = 0`)
+      whereClauses.push(`bm.is_omitted = false`)
     }
 
     if (search) {
-      whereClauses.push(`(bm.description LIKE $` + (params.length + 1) + ` OR bm.referenceNumber LIKE $` + (params.length + 2) + ` OR bm.uploadBatch LIKE $` + (params.length + 3) + `)`)
+      whereClauses.push(`(bm.description LIKE $` + (params.length + 1) + ` OR bm.reference_number LIKE $` + (params.length + 2) + ` OR bm.upload_batch LIKE $` + (params.length + 3) + `)`)
       const s = `%${search}%`
       params.push(s, s, s)
     }
@@ -60,45 +60,45 @@ export async function GET(request: NextRequest) {
     const selectSQL = `
       SELECT
         bm.id,
-        bm.transactionDate,
+        bm.transaction_date,
         bm.description,
         bm.amount,
         bm.balance,
-        bm.referenceNumber,
-        bm.transactionType,
+        bm.reference_number,
+        bm.transaction_type,
         bm.category,
-        bm.isOmitted,
-        bm.omitReason,
-        bm.isVerified,
-        bm.verifiedAt,
-        bm.verifiedBy,
-        bm.matchedPaymentId,
-        bm.matchedResidentId,
-        bm.matchScore,
-        bm.matchingStrategy,
-        bm.uploadBatch,
-        bm.fileName,
-        bm.createdAt,
-        r.name AS residentName,
-        r.blok AS residentBlok,
-        r.houseNumber AS residentHouseNumber
+        bm.is_omitted,
+        bm.omit_reason,
+        bm.is_verified,
+        bm.verified_at,
+        bm.verified_by,
+        bm.matched_payment_id,
+        bm.matched_resident_id,
+        bm.match_score,
+        bm.matching_strategy,
+        bm.upload_batch,
+        bm.file_name,
+        bm.created_at,
+        r.name AS resident_name,
+        r.blok AS resident_blok,
+        r.house_number AS resident_house_number
       FROM bank_mutations bm
-      LEFT JOIN residents r ON r.id = bm.matchedResidentId
+      LEFT JOIN residents r ON r.id = bm.matched_resident_id
       ${whereSQL}
-      ORDER BY bm.transactionDate DESC, bm.createdAt DESC
+      ORDER BY bm.transaction_date DESC, bm.created_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `
 
     const countSQL = `
       SELECT COUNT(*) as cnt
       FROM bank_mutations bm
-      LEFT JOIN residents r ON r.id = bm.matchedResidentId
+      LEFT JOIN residents r ON r.id = bm.matched_resident_id
       ${whereSQL}
     `
 
     const itemsParams = [...params, limit, offset]
 
-    // Use raw query to avoid SQLite datetime quirks
+    // Use raw query to avoid PostgreSQL datetime quirks
     const items = await (db as any).$queryRawUnsafe(selectSQL, ...itemsParams)
     
     const countRows = await (db as any).$queryRawUnsafe(countSQL, ...params)
@@ -149,39 +149,21 @@ export async function CHECK_PERIOD(request: NextRequest) {
     // Count existing transactions for the period
     const countResult = await (db as any).bankMutation.count({
       where: {
-        AND: [
-          {
-            transactionDate: {
-              gte: new Date(yearNum, monthNum - 1, 1),
-              lt: new Date(yearNum, monthNum, 1)
-            }
-          }
-        ]
+        transaction_date: {
+          gte: new Date(yearNum, monthNum - 1, 1),
+          lt: new Date(yearNum, monthNum, 1)
+        }
       }
     })
 
     return NextResponse.json({
-      hasData: countResult > 0,
-      count: countResult,
       year: yearNum,
-      month: monthNum
+      month: monthNum,
+      existingCount: countResult,
+      hasData: countResult > 0
     })
   } catch (error) {
-    console.error('Failed to check period data:', error)
-    return NextResponse.json({ error: 'Failed to check period data' }, { status: 500 })
+    console.error('Failed to check period:', error)
+    return NextResponse.json({ error: 'Failed to check period' }, { status: 500 })
   }
 }
-// DELETE /api/bank-mutations - clear data
-export async function DELETE() {
-  try {
-    // Use Prisma to delete all to respect FKs and cascade
-    await (db as any).bankMutationVerification.deleteMany({})
-    await (db as any).bankMutation.deleteMany({})
-    return NextResponse.json({ ok: true })
-  } catch (error) {
-    console.error('Failed to reset bank mutations:', error)
-    return NextResponse.json({ error: 'Failed to reset bank mutations' }, { status: 500 })
-  }
-}
-
-

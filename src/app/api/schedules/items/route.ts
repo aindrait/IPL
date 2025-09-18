@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20')))
-    const residentId = searchParams.get('residentId') || undefined
-    const scheduleId = searchParams.get('scheduleId') || undefined
-    const periodId = searchParams.get('periodId') || undefined
+    const resident_id = searchParams.get('resident_id') || undefined
+    const schedule_id = searchParams.get('schedule_id') || undefined
+    const period_id = searchParams.get('period_id') || undefined
     const status = searchParams.get('status') || undefined
     const type = searchParams.get('type') || undefined
     const search = searchParams.get('search') || ''
@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where: any = {}
-    if (residentId) where.residentId = residentId
-    if (scheduleId) where.scheduleId = scheduleId
-    if (periodId) where.periodId = periodId
+    if (resident_id) where.resident_id = resident_id
+    if (schedule_id) where.schedule_id = schedule_id
+    if (period_id) where.period_id = period_id
     if (status) where.status = status
     if (type) where.type = type
     if (search) {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         { notes: { contains: search, mode: 'insensitive' } },
         { resident: { name: { contains: search, mode: 'insensitive' } } },
         { resident: { blok: { contains: search, mode: 'insensitive' } } },
-        { resident: { houseNumber: { contains: search, mode: 'insensitive' } } },
+        { resident: { house_number: { contains: search, mode: 'insensitive' } } },
         // Search by RT/RW numbers
         ...(search.match(/^RT?\s*(\d+)$/i) ? [{ resident: { rt: parseInt(search.match(/^RT?\s*(\d+)$/i)![1]) } }] : []),
         ...(search.match(/^RW\s*(\d+)$/i) ? [{ resident: { rw: parseInt(search.match(/^RW\s*(\d+)$/i)![1]) } }] : []),
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Filter out paid and skipped items by default unless explicitly requested
     if (!includePaid) {
       where.status = { notIn: ['PAID', 'SKIPPED'] }
-      where.paymentId = null
+      where.payment_id = null
     }
 
     // Hide expired donation (optional) items by default - donations cannot be selected after due date
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       NOT: {
         AND: [
           { type: 'DONATION' },
-          { dueDate: { lt: now } },
+          { due_date: { lt: now } },
           { status: { notIn: ['PAID', 'SKIPPED'] } } // Still show paid/skipped donations even if expired
         ]
       }
@@ -86,13 +86,13 @@ export async function GET(request: NextRequest) {
     const [items, total, totalStats] = await Promise.all([
       db.paymentScheduleItem.findMany({
         where: { ...where, ...donationFilter },
-        orderBy: { dueDate: 'asc' },
+        orderBy: { due_date: 'asc' },
         skip,
         take: limit,
         include: {
-          resident: { select: { id: true, name: true, blok: true, houseNumber: true, rt: true, rw: true } },
+          resident: { select: { id: true, name: true, blok: true, house_number: true, rt: true, rw: true } },
           schedule: { select: { id: true, name: true } },
-          period: { select: { id: true, name: true, month: true, year: true, amount: true, dueDate: true } },
+          period: { select: { id: true, name: true, month: true, year: true, amount: true, due_date: true } },
           payment: true,
         },
       }),
@@ -116,10 +116,10 @@ export async function GET(request: NextRequest) {
         const mm = String(it.period.month).padStart(2, '0')
         indexCode = `${it.period.year}-${mm}`
       } else if (it.type === 'SPECIAL') {
-        indexCode = `${it.period?.year || new Date(it.dueDate).getFullYear()}-THR`
+        indexCode = `${it.period?.year || new Date(it.due_date).getFullYear()}-THR`
       } else if (it.type === 'DONATION') {
         // naive S# based on order within same year; can be refined later
-        indexCode = `${it.period?.year || new Date(it.dueDate).getFullYear()}-S1`
+        indexCode = `${it.period?.year || new Date(it.due_date).getFullYear()}-S1`
       }
       return { ...it, indexCode }
     })
@@ -169,7 +169,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Item jadwal tidak ditemukan' }, { status: 404 })
     }
     
-    if (scheduleItem.paymentId) {
+    if (scheduleItem.payment_id) {
       return NextResponse.json(
         { error: 'Tidak dapat menghapus item jadwal yang sudah terbayar' },
         { status: 400 }
@@ -207,8 +207,8 @@ export async function PUT(request: NextRequest) {
     const data: any = {}
     
     // Validation for paid schedule items
-    if (scheduleItem.paymentId) {
-      // For paid items, only allow editing notes and dueDate (with restrictions)
+    if (scheduleItem.payment_id) {
+      // For paid items, only allow editing notes and due_date (with restrictions)
       if (typeof amount === 'number') {
         return NextResponse.json(
           { error: 'Tidak dapat mengubah jumlah item yang sudah dibayar' },

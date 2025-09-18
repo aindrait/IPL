@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         data: {
           amount: input.newAmount,
           notes: newNotes,
-          updatedAt: now,
+          updated_at: now,
         },
       })
 

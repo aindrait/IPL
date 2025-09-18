@@ -10,7 +10,7 @@ import { Settings, Save } from 'lucide-react'
 
 interface PaymentSettings {
   defaultAmount: number
-  dueDate: number
+  due_date: number
   rwSettings: {
     activeRWs: number[]
     defaultRW: number
@@ -25,7 +25,7 @@ interface PaymentSettings {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<PaymentSettings>({
     defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
-    dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
+    due_date: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
     rwSettings: {
       activeRWs: [12],
       defaultRW: 12
@@ -149,14 +149,14 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dueDate">Tanggal Jatuh Tempo</Label>
+                <Label htmlFor="due_date">Tanggal Jatuh Tempo</Label>
                 <Input
-                  id="dueDate"
+                  id="due_date"
                   type="number"
-                  value={settings.dueDate}
+                  value={settings.due_date}
                   onChange={(e) => setSettings(prev => ({
                     ...prev,
-                    dueDate: parseInt(e.target.value) || 1
+                    due_date: parseInt(e.target.value) || 1
                   }))}
                   min="1"
                   max="31"

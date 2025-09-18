@@ -15,8 +15,8 @@ interface User {
   email: string
   name: string | null
   role: string
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface UserManagementProps {
@@ -167,7 +167,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                     <TableCell className="font-medium">{user.name || 'N/A'}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
                       {user.id !== currentUser.id && (
                         <Button

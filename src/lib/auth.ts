@@ -30,7 +30,7 @@ export async function createUser(email: string, name: string, password: string, 
       email: true,
       name: true,
       role: true,
-      createdAt: true,
+      created_at: true,
     },
   })
 }

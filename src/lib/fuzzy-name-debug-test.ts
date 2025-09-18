@@ -12,13 +12,13 @@ const mockResidents = [
     id: '1',
     name: 'DONNY PUTRA',
     aliases: [],
-    isActive: true
+    is_active: true
   },
   {
     id: '2', 
     name: 'ANNA CARLINA / AGUSTINUS ERWIN',
     aliases: [],
-    isActive: true
+    is_active: true
   }
 ]
 

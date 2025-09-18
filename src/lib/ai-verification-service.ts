@@ -16,8 +16,8 @@ export interface AIVerificationRequest {
     id: string
     name: string
     blok?: string
-    houseNumber?: string
-    paymentIndex?: number
+    house_number?: string
+    payment_index?: number
     rt?: number
     rw?: number
     phone?: string
@@ -25,18 +25,18 @@ export interface AIVerificationRequest {
   }>
   context: {
     historicalMatches?: Array<{
-      residentId: string
+      resident_id: string
       description: string
       amount: number
       confidence: number
     }>
     learningPatterns?: Array<{
-      residentId: string
+      resident_id: string
       patterns: string[]
       confidence: number
     }>
     ruleBasedResults?: Array<{
-      residentId: string
+      resident_id: string
       confidence: number
       strategy: string
       factors: string[]
@@ -53,7 +53,7 @@ export interface AIVerificationRequest {
 export interface AIVerificationResponse {
   success: boolean
   matches: Array<{
-    residentId: string
+    resident_id: string
     confidence: number
     reasoning: string
     factors: string[]
@@ -179,8 +179,8 @@ You are an expert bank transaction verification assistant for an Indonesian resi
 ${residents.map(resident => `
 - ID: ${resident.id}
   Name: ${resident.name}
-  Address: ${resident.blok ? `${resident.blok} / ${resident.houseNumber || 'N/A'}` : 'N/A'}
-  Payment Index: ${resident.paymentIndex || 'N/A'}
+  Address: ${resident.blok ? `${resident.blok} / ${resident.house_number || 'N/A'}` : 'N/A'}
+  Payment Index: ${resident.payment_index || 'N/A'}
   RT/RW: ${resident.rt || 'N/A'}/${resident.rw || 'N/A'}
   Contact: ${resident.phone || 'N/A'}, ${resident.email || 'N/A'}
 `).join('')}
@@ -189,21 +189,21 @@ ${residents.map(resident => `
 ${context.historicalMatches ? `
 ### HISTORICAL MATCHES
 ${context.historicalMatches.map(match => `
-- Resident ${match.residentId}: "${match.description}" (Amount: ${match.amount}, Confidence: ${match.confidence})
+- Resident ${match.resident_id}: "${match.description}" (Amount: ${match.amount}, Confidence: ${match.confidence})
 `).join('')}
 ` : ''}
 
 ${context.learningPatterns ? `
 ### LEARNING PATTERNS
 ${context.learningPatterns.map(pattern => `
-- Resident ${pattern.residentId}: Patterns [${pattern.patterns.join(', ')}] (Confidence: ${pattern.confidence})
+- Resident ${pattern.resident_id}: Patterns [${pattern.patterns.join(', ')}] (Confidence: ${pattern.confidence})
 `).join('')}
 ` : ''}
 
 ${context.ruleBasedResults ? `
 ### RULE-BASED RESULTS
 ${context.ruleBasedResults.map(result => `
-- Resident ${result.residentId}: ${result.strategy} (Confidence: ${result.confidence})
+- Resident ${result.resident_id}: ${result.strategy} (Confidence: ${result.confidence})
   Factors: ${result.factors.join(', ')}
 `).join('')}
 ` : ''}
@@ -222,7 +222,7 @@ Please respond in JSON format with the following structure:
 {
   "matches": [
     {
-      "residentId": "string",
+      "resident_id": "string",
       "confidence": number (0-1),
       "reasoning": "string",
       "factors": ["string", "string"]
@@ -284,7 +284,7 @@ ${options?.includeReasoning !== false ? 'Include detailed reasoning for your ana
       
       // Validate and format response
       const matches = (parsed.matches || []).map((match: any) => ({
-        residentId: match.residentId,
+        resident_id: match.resident_id,
         confidence: Math.max(0, Math.min(1, match.confidence || 0)),
         reasoning: match.reasoning || '',
         factors: Array.isArray(match.factors) ? match.factors : []

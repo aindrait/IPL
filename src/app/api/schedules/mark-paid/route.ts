@@ -4,8 +4,8 @@ import { z } from 'zod'
 
 const markPaidSchema = z.object({
   itemIds: z.array(z.string()).min(1, 'Pilih minimal satu item'),
-  paymentDate: z.string().min(1, 'Tanggal pembayaran harus diisi'),
-  paymentMethod: z.string().optional(),
+  payment_date: z.string().min(1, 'Tanggal pembayaran harus diisi'),
+  payment_method: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
 
     const results: any[] = []
     for (const item of items) {
-      if (item.status === 'PAID' && item.paymentId) {
-        results.push({ itemId: item.id, status: 'already_paid', paymentId: item.paymentId })
+      if (item.status === 'PAID' && item.payment_id) {
+        results.push({ itemId: item.id, status: 'already_paid', payment_id: item.payment_id })
         continue
       }
 
@@ -43,22 +43,22 @@ export async function POST(request: NextRequest) {
       const payment = await db.payment.create({
         data: {
           amount: item.amount,
-          paymentDate: new Date(input.paymentDate),
+          payment_date: new Date(input.payment_date),
           status: 'MANUAL_PAID', // Different status for manual payments
-          paymentMethod: input.paymentMethod || 'Manual Entry',
+          payment_method: input.payment_method || 'Manual Entry',
           notes: `Manual mark paid: ${input.notes || 'No notes'}`,
-          residentId: item.residentId,
-          createdById: systemUser.id,
+          resident_id: item.resident_id,
+          created_by_id: systemUser.id,
         },
       })
 
       // eslint-disable-next-line no-await-in-loop
       await db.paymentScheduleItem.update({
         where: { id: item.id },
-        data: { status: 'PAID', paidDate: new Date(input.paymentDate), paymentId: payment.id },
+        data: { status: 'PAID', paid_date: new Date(input.payment_date), payment_id: payment.id },
       })
 
-      results.push({ itemId: item.id, status: 'paid', paymentId: payment.id })
+      results.push({ itemId: item.id, status: 'paid', payment_id: payment.id })
     }
 
     return NextResponse.json({ message: 'Item ditandai sebagai dibayar', results })

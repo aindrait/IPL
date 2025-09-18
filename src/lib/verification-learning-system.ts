@@ -9,34 +9,34 @@ import { AddressPatternMatcher } from './address-pattern-matching'
 import { IPLIdentifier } from './ipl-identifier'
 
 export interface LearningData {
-  residentId: string
-  namePatterns: Array<{
+  resident_id: string
+  name_patterns: Array<{
     pattern: string
     frequency: number
-    lastSeen: Date
+    last_seen: Date
     confidence: number
   }>
-  addressPatterns: Array<{
+  address_patterns: Array<{
     pattern: string
     frequency: number
-    lastSeen: Date
+    last_seen: Date
     confidence: number
   }>
-  transactionPatterns: Array<{
+  transaction_patterns: Array<{
     pattern: string
     frequency: number
-    lastSeen: Date
+    last_seen: Date
     confidence: number
   }>
   amountPatterns: Array<{
     amount: number
     frequency: number
-    lastSeen: Date
+    last_seen: Date
     confidence: number
   }>
   averageConfidence: number
   totalVerifications: number
-  lastUpdated: Date
+  last_updated: Date
 }
 
 export interface LearningInsight {
@@ -44,7 +44,7 @@ export interface LearningInsight {
   pattern: string
   confidence: number
   frequency: number
-  lastSeen: Date
+  last_seen: Date
   applicableResidentIds: string[]
 }
 
@@ -65,10 +65,10 @@ export class VerificationLearningSystem {
 
     // Load residents for fuzzy name matching
     const residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       include: {
         bankAliases: {
-          where: { isVerified: true },
+          where: { is_verified: true },
           orderBy: { frequency: 'desc' }
         }
       }
@@ -94,17 +94,17 @@ export class VerificationLearningSystem {
       const learningRecords = await (db as any).verificationLearningData.findMany()
       
       for (const record of learningRecords) {
-        const residentId = record.residentId
+        const resident_id = record.resident_id
         
-        this.learningData.set(residentId, {
-          residentId,
-          namePatterns: JSON.parse(record.namePatterns || '[]'),
-          addressPatterns: JSON.parse(record.addressPatterns || '[]'),
-          transactionPatterns: JSON.parse(record.transactionPatterns || '[]'),
+        this.learningData.set(resident_id, {
+          resident_id,
+          name_patterns: JSON.parse(record.name_patterns || '[]'),
+          address_patterns: JSON.parse(record.address_patterns || '[]'),
+          transaction_patterns: JSON.parse(record.transaction_patterns || '[]'),
           amountPatterns: JSON.parse(record.amountPatterns || '[]'),
           averageConfidence: parseFloat(record.averageConfidence || '0'),
           totalVerifications: parseInt(record.totalVerifications || '0'),
-          lastUpdated: new Date(record.lastUpdated)
+          last_updated: new Date(record.last_updated)
         })
       }
     } catch (error) {
@@ -127,7 +127,7 @@ export class VerificationLearningSystem {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { created_at: 'desc' }
     })
 
     // Process each historical verification
@@ -140,64 +140,64 @@ export class VerificationLearningSystem {
 
   private async processHistoricalVerification(verification: any): Promise<void> {
     const { mutation, confidence, action } = verification
-    const residentId = mutation.matchedResident.id
+    const resident_id = mutation.matchedResident.id
     const description = mutation.description
     const amount = mutation.amount
-    const createdAt = verification.createdAt
+    const created_at = verification.created_at
 
     // Get or create learning data for this resident
-    let learningData = this.learningData.get(residentId) || {
-      residentId,
-      namePatterns: [],
-      addressPatterns: [],
-      transactionPatterns: [],
+    let learningData = this.learningData.get(resident_id) || {
+      resident_id,
+      name_patterns: [],
+      address_patterns: [],
+      transaction_patterns: [],
       amountPatterns: [],
       averageConfidence: 0,
       totalVerifications: 0,
-      lastUpdated: new Date()
+      last_updated: new Date()
     }
 
     // Extract and update name patterns
-    const namePatterns = this.extractNamePatterns(description)
-    for (const pattern of namePatterns) {
-      this.updatePattern(learningData.namePatterns, pattern, confidence, createdAt)
+    const name_patterns = this.extractNamePatterns(description)
+    for (const pattern of name_patterns) {
+      this.updatePattern(learningData.name_patterns, pattern, confidence, created_at)
     }
 
     // Extract and update address patterns
     if (this.addressPatternMatcher) {
       const addressPattern = this.addressPatternMatcher.extractAddressPattern(description)
       if (addressPattern) {
-        const formattedAddress = `${addressPattern.blok} / ${addressPattern.houseNumber}`
-        this.updatePattern(learningData.addressPatterns, formattedAddress, confidence, createdAt)
+        const formattedAddress = `${addressPattern.blok} / ${addressPattern.house_number}`
+        this.updatePattern(learningData.address_patterns, formattedAddress, confidence, created_at)
       }
     }
 
     // Extract and update transaction patterns
-    const transactionPatterns = this.extractTransactionPatterns(description)
-    for (const pattern of transactionPatterns) {
-      this.updatePattern(learningData.transactionPatterns, pattern, confidence, createdAt)
+    const transaction_patterns = this.extractTransactionPatterns(description)
+    for (const pattern of transaction_patterns) {
+      this.updatePattern(learningData.transaction_patterns, pattern, confidence, created_at)
     }
 
     // Update amount patterns
-    this.updateAmountPattern(learningData.amountPatterns, amount, confidence, createdAt)
+    this.updateAmountPattern(learningData.amountPatterns, amount, confidence, created_at)
 
     // Update statistics
     learningData.totalVerifications += 1
     learningData.averageConfidence = this.calculateAverageConfidence(learningData)
-    learningData.lastUpdated = new Date()
+    learningData.last_updated = new Date()
 
     // Store updated learning data
-    this.learningData.set(residentId, learningData)
+    this.learningData.set(resident_id, learningData)
 
     // Persist to database
-    await this.persistLearningData(residentId, learningData)
+    await this.persistLearningData(resident_id, learningData)
   }
 
   private updatePattern(
     patterns: Array<{
       pattern: string
       frequency: number
-      lastSeen: Date
+      last_seen: Date
       confidence: number
     }>,
     newPattern: string,
@@ -208,14 +208,14 @@ export class VerificationLearningSystem {
     
     if (existingPattern) {
       existingPattern.frequency += 1
-      existingPattern.lastSeen = timestamp
+      existingPattern.last_seen = timestamp
       // Update confidence as weighted average
       existingPattern.confidence = (existingPattern.confidence * 0.7) + (confidence * 0.3)
     } else {
       patterns.push({
         pattern: newPattern,
         frequency: 1,
-        lastSeen: timestamp,
+        last_seen: timestamp,
         confidence
       })
     }
@@ -225,7 +225,7 @@ export class VerificationLearningSystem {
     patterns: Array<{
       amount: number
       frequency: number
-      lastSeen: Date
+      last_seen: Date
       confidence: number
     }>,
     amount: number,
@@ -239,13 +239,13 @@ export class VerificationLearningSystem {
     
     if (existingPattern) {
       existingPattern.frequency += 1
-      existingPattern.lastSeen = timestamp
+      existingPattern.last_seen = timestamp
       existingPattern.confidence = (existingPattern.confidence * 0.7) + (confidence * 0.3)
     } else {
       patterns.push({
         amount: amountRange,
         frequency: 1,
-        lastSeen: timestamp,
+        last_seen: timestamp,
         confidence
       })
     }
@@ -258,9 +258,9 @@ export class VerificationLearningSystem {
 
   private calculateAverageConfidence(data: LearningData): number {
     const allConfidences = [
-      ...data.namePatterns.map(p => p.confidence),
-      ...data.addressPatterns.map(p => p.confidence),
-      ...data.transactionPatterns.map(p => p.confidence),
+      ...data.name_patterns.map(p => p.confidence),
+      ...data.address_patterns.map(p => p.confidence),
+      ...data.transaction_patterns.map(p => p.confidence),
       ...data.amountPatterns.map(p => p.confidence)
     ]
     
@@ -302,28 +302,28 @@ export class VerificationLearningSystem {
     return patterns
   }
 
-  private async persistLearningData(residentId: string, data: LearningData): Promise<void> {
+  private async persistLearningData(resident_id: string, data: LearningData): Promise<void> {
     try {
       await (db as any).verificationLearningData.upsert({
-        where: { residentId },
+        where: { resident_id },
         update: {
-          namePatterns: JSON.stringify(data.namePatterns),
-          addressPatterns: JSON.stringify(data.addressPatterns),
-          transactionPatterns: JSON.stringify(data.transactionPatterns),
+          name_patterns: JSON.stringify(data.name_patterns),
+          address_patterns: JSON.stringify(data.address_patterns),
+          transaction_patterns: JSON.stringify(data.transaction_patterns),
           amountPatterns: JSON.stringify(data.amountPatterns),
           averageConfidence: data.averageConfidence,
           totalVerifications: data.totalVerifications,
-          lastUpdated: data.lastUpdated
+          last_updated: data.last_updated
         },
         create: {
-          residentId,
-          namePatterns: JSON.stringify(data.namePatterns),
-          addressPatterns: JSON.stringify(data.addressPatterns),
-          transactionPatterns: JSON.stringify(data.transactionPatterns),
+          resident_id,
+          name_patterns: JSON.stringify(data.name_patterns),
+          address_patterns: JSON.stringify(data.address_patterns),
+          transaction_patterns: JSON.stringify(data.transaction_patterns),
           amountPatterns: JSON.stringify(data.amountPatterns),
           averageConfidence: data.averageConfidence,
           totalVerifications: data.totalVerifications,
-          lastUpdated: data.lastUpdated
+          last_updated: data.last_updated
         }
       })
     } catch (error) {
@@ -335,45 +335,45 @@ export class VerificationLearningSystem {
     this.insights = []
     
     // Generate insights from all learning data
-    for (const [residentId, data] of this.learningData) {
+    for (const [resident_id, data] of this.learningData) {
       // Name pattern insights
-      for (const pattern of data.namePatterns) {
+      for (const pattern of data.name_patterns) {
         if (pattern.frequency >= 3 && pattern.confidence >= 0.7) {
           this.addInsight({
             type: 'NAME_PATTERN',
             pattern: pattern.pattern,
             confidence: pattern.confidence,
             frequency: pattern.frequency,
-            lastSeen: pattern.lastSeen,
-            applicableResidentIds: [residentId]
+            last_seen: pattern.last_seen,
+            applicableResidentIds: [resident_id]
           })
         }
       }
       
       // Address pattern insights
-      for (const pattern of data.addressPatterns) {
+      for (const pattern of data.address_patterns) {
         if (pattern.frequency >= 2 && pattern.confidence >= 0.8) {
           this.addInsight({
             type: 'ADDRESS_PATTERN',
             pattern: pattern.pattern,
             confidence: pattern.confidence,
             frequency: pattern.frequency,
-            lastSeen: pattern.lastSeen,
-            applicableResidentIds: [residentId]
+            last_seen: pattern.last_seen,
+            applicableResidentIds: [resident_id]
           })
         }
       }
       
       // Transaction pattern insights
-      for (const pattern of data.transactionPatterns) {
+      for (const pattern of data.transaction_patterns) {
         if (pattern.frequency >= 5 && pattern.confidence >= 0.6) {
           this.addInsight({
             type: 'TRANSACTION_PATTERN',
             pattern: pattern.pattern,
             confidence: pattern.confidence,
             frequency: pattern.frequency,
-            lastSeen: pattern.lastSeen,
-            applicableResidentIds: [residentId]
+            last_seen: pattern.last_seen,
+            applicableResidentIds: [resident_id]
           })
         }
       }
@@ -386,8 +386,8 @@ export class VerificationLearningSystem {
             pattern: pattern.amount.toString(),
             confidence: pattern.confidence,
             frequency: pattern.frequency,
-            lastSeen: pattern.lastSeen,
-            applicableResidentIds: [residentId]
+            last_seen: pattern.last_seen,
+            applicableResidentIds: [resident_id]
           })
         }
       }
@@ -412,7 +412,7 @@ export class VerificationLearningSystem {
       // Merge with existing insight
       existingInsight.confidence = Math.max(existingInsight.confidence, insight.confidence)
       existingInsight.frequency += insight.frequency
-      existingInsight.lastSeen = insight.lastSeen > existingInsight.lastSeen ? insight.lastSeen : existingInsight.lastSeen
+      existingInsight.last_seen = insight.last_seen > existingInsight.last_seen ? insight.last_seen : existingInsight.last_seen
       existingInsight.applicableResidentIds = [
         ...new Set([...existingInsight.applicableResidentIds, ...insight.applicableResidentIds])
       ]
@@ -431,7 +431,7 @@ export class VerificationLearningSystem {
 
     const { mutation, action, confidence } = verification
     
-    if (action === 'MANUAL_CONFIRM' && mutation.matchedResidentId) {
+    if (action === 'MANUAL_CONFIRM' && mutation.matched_resident_id) {
       await this.processHistoricalVerification(verification)
       
       // Regenerate insights after learning
@@ -442,8 +442,8 @@ export class VerificationLearningSystem {
   /**
    * Get learning data for a specific resident
    */
-  getLearningData(residentId: string): LearningData | null {
-    return this.learningData.get(residentId) || null
+  getLearningData(resident_id: string): LearningData | null {
+    return this.learningData.get(resident_id) || null
   }
 
   /**
@@ -467,29 +467,29 @@ export class VerificationLearningSystem {
   /**
    * Find similar residents based on learning patterns
    */
-  findSimilarResidents(residentId: string, limit: number = 5): Array<{
-    residentId: string
+  findSimilarResidents(resident_id: string, limit: number = 5): Array<{
+    resident_id: string
     similarity: number
     commonPatterns: string[]
   }> {
-    const targetData = this.learningData.get(residentId)
+    const targetData = this.learningData.get(resident_id)
     if (!targetData) return []
 
     const similarities: Array<{
-      residentId: string
+      resident_id: string
       similarity: number
       commonPatterns: string[]
     }> = []
 
     for (const [otherResidentId, otherData] of this.learningData) {
-      if (otherResidentId === residentId) continue
+      if (otherResidentId === resident_id) continue
 
       const similarity = this.calculateSimilarity(targetData, otherData)
       if (similarity > 0.3) { // Only include meaningful similarities
         const commonPatterns = this.findCommonPatterns(targetData, otherData)
         
         similarities.push({
-          residentId: otherResidentId,
+          resident_id: otherResidentId,
           similarity,
           commonPatterns
         })
@@ -508,24 +508,24 @@ export class VerificationLearningSystem {
 
     // Name pattern similarity
     const nameSimilarity = this.calculatePatternSimilarity(
-      data1.namePatterns.map(p => p.pattern),
-      data2.namePatterns.map(p => p.pattern)
+      data1.name_patterns.map(p => p.pattern),
+      data2.name_patterns.map(p => p.pattern)
     )
     similarity += nameSimilarity
     totalFactors += 1
 
     // Address pattern similarity
     const addressSimilarity = this.calculatePatternSimilarity(
-      data1.addressPatterns.map(p => p.pattern),
-      data2.addressPatterns.map(p => p.pattern)
+      data1.address_patterns.map(p => p.pattern),
+      data2.address_patterns.map(p => p.pattern)
     )
     similarity += addressSimilarity
     totalFactors += 1
 
     // Transaction pattern similarity
     const transactionSimilarity = this.calculatePatternSimilarity(
-      data1.transactionPatterns.map(p => p.pattern),
-      data2.transactionPatterns.map(p => p.pattern)
+      data1.transaction_patterns.map(p => p.pattern),
+      data2.transaction_patterns.map(p => p.pattern)
     )
     similarity += transactionSimilarity
     totalFactors += 1
@@ -554,18 +554,18 @@ export class VerificationLearningSystem {
     const commonPatterns: string[] = []
 
     // Common name patterns
-    const namePatterns1 = data1.namePatterns.map(p => p.pattern)
-    const namePatterns2 = data2.namePatterns.map(p => p.pattern)
+    const namePatterns1 = data1.name_patterns.map(p => p.pattern)
+    const namePatterns2 = data2.name_patterns.map(p => p.pattern)
     commonPatterns.push(...namePatterns1.filter(p => namePatterns2.includes(p)))
 
     // Common address patterns
-    const addressPatterns1 = data1.addressPatterns.map(p => p.pattern)
-    const addressPatterns2 = data2.addressPatterns.map(p => p.pattern)
+    const addressPatterns1 = data1.address_patterns.map(p => p.pattern)
+    const addressPatterns2 = data2.address_patterns.map(p => p.pattern)
     commonPatterns.push(...addressPatterns1.filter(p => addressPatterns2.includes(p)))
 
     // Common transaction patterns
-    const transactionPatterns1 = data1.transactionPatterns.map(p => p.pattern)
-    const transactionPatterns2 = data2.transactionPatterns.map(p => p.pattern)
+    const transactionPatterns1 = data1.transaction_patterns.map(p => p.pattern)
+    const transactionPatterns2 = data2.transaction_patterns.map(p => p.pattern)
     commonPatterns.push(...transactionPatterns1.filter(p => transactionPatterns2.includes(p)))
 
     return [...new Set(commonPatterns)]
@@ -584,9 +584,9 @@ export class VerificationLearningSystem {
     const totalResidents = this.learningData.size
     const totalPatterns = Array.from(this.learningData.values()).reduce(
       (sum, data) => sum + 
-        data.namePatterns.length + 
-        data.addressPatterns.length + 
-        data.transactionPatterns.length + 
+        data.name_patterns.length + 
+        data.address_patterns.length + 
+        data.transaction_patterns.length + 
         data.amountPatterns.length,
       0
     )

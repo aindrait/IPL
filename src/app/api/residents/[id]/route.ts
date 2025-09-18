@@ -11,11 +11,11 @@ const updateResidentSchema = z.object({
   rt: z.number().min(1, 'RT harus diisi').max(20, 'RT maksimal 20').optional(),
   rw: z.number().min(1, 'RW harus diisi').max(20, 'RW maksimal 20').optional(),
   blok: z.string().min(1, 'BLOK harus diisi').optional(),
-  houseNumber: z.string().min(1, 'Nomor rumah harus diisi').optional(),
-  paymentIndex: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
+  house_number: z.string().min(1, 'Nomor rumah harus diisi').optional(),
+  payment_index: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
   ownership: z.enum(['MILIK', 'SEWA']).optional().nullable(),
-  isActive: z.boolean().optional(),
-  rtId: z.string().optional().nullable(),
+  is_active: z.boolean().optional(),
+  rt_id: z.string().optional().nullable(),
 })
 
 export async function GET(
@@ -26,14 +26,14 @@ export async function GET(
     const resident = await db.resident.findUnique({
       where: { id: params.id },
       include: {
-        createdBy: {
+        created_by: {
           select: { id: true, name: true, email: true }
         },
         payments: {
           include: {
             proofs: true
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { created_at: 'desc' }
         }
       }
     })
@@ -93,41 +93,41 @@ export async function PUT(
     }
 
     // Handle payment index
-    let paymentIndex = resident.paymentIndex
+    let payment_index = resident.payment_index
     
     // If payment index is explicitly provided, use it
-    if (validatedData.paymentIndex !== undefined) {
-      paymentIndex = validatedData.paymentIndex
+    if (validatedData.payment_index !== undefined) {
+      payment_index = validatedData.payment_index
       
       // Check if payment index already exists (excluding current resident)
       const existingPaymentIndex = await db.$queryRaw`
-        SELECT id FROM residents WHERE paymentIndex = ${paymentIndex} AND id != ${id} LIMIT 1
+        SELECT id FROM residents WHERE "payment_index" = ${payment_index} AND id != ${id} LIMIT 1
       ` as any[]
 
       if (existingPaymentIndex && existingPaymentIndex.length > 0) {
         return NextResponse.json(
-          { error: 'Index pembayaran sudah terdaftar', details: `Index pembayaran ${paymentIndex} sudah digunakan oleh warga lain` },
+          { error: 'Index pembayaran sudah terdaftar', details: `Index pembayaran ${payment_index} sudah digunakan oleh warga lain` },
           { status: 400 }
         )
       }
     }
     // Only generate payment index if not explicitly provided and BLOK and house number are available
-    else if (validatedData.blok || validatedData.houseNumber) {
+    else if (validatedData.blok || validatedData.house_number) {
       const blok = validatedData.blok || resident.blok
-      const houseNumber = validatedData.houseNumber || resident.houseNumber
+      const house_number = validatedData.house_number || resident.house_number
       
-      if (blok && houseNumber && !resident.paymentIndex) {
+      if (blok && house_number && !resident.payment_index) {
         try {
-          paymentIndex = generatePaymentIndex(blok, houseNumber)
+          payment_index = generatePaymentIndex(blok, house_number)
           
           // Check if payment index already exists (excluding current resident)
           const existingPaymentIndex = await db.$queryRaw`
-            SELECT id FROM residents WHERE paymentIndex = ${paymentIndex} AND id != ${id} LIMIT 1
+            SELECT id FROM residents WHERE "payment_index" = ${payment_index} AND id != ${id} LIMIT 1
           ` as any[]
 
           if (existingPaymentIndex && existingPaymentIndex.length > 0) {
             return NextResponse.json(
-              { error: 'Index pembayaran sudah terdaftar', details: `Kombinasi BLOK ${blok} dan nomor rumah ${houseNumber} sudah terdaftar` },
+              { error: 'Index pembayaran sudah terdaftar', details: `Kombinasi BLOK ${blok} dan nomor rumah ${house_number} sudah terdaftar` },
               { status: 400 }
             )
           }
@@ -160,53 +160,59 @@ export async function PUT(
       updateFields.push('email = $' + (updateValues.length + 1))
       updateValues.push(validatedData.email === '' ? null : validatedData.email)
     }
-    if (validatedData.rt) {
-      updateFields.push('rt = $' + (updateValues.length + 1))
-      updateValues.push(validatedData.rt)
-    }
-    if (validatedData.rw) {
-      updateFields.push('rw = $' + (updateValues.length + 1))
-      updateValues.push(validatedData.rw)
-    }
-    if (validatedData.rtId !== undefined) {
-      // If rtId provided, sync rt & rw
-      if (validatedData.rtId) {
-        const rt = await db.rT.findUnique({ where: { id: validatedData.rtId } })
+    // Handle RT/RW updates - prioritize rt_id over individual rt/rw
+    if (validatedData.rt_id !== undefined) {
+      // If rt_id provided, sync rt & rw from RT table
+      if (validatedData.rt_id) {
+        const rt = await db.rT.findUnique({ where: { id: validatedData.rt_id } })
         if (!rt) {
           return NextResponse.json(
             { error: 'RT tidak ditemukan' },
             { status: 400 }
           )
         }
-        updateFields.push('rtId = $' + (updateValues.length + 1))
-        updateValues.push(validatedData.rtId)
+        updateFields.push('rt_id = $' + (updateValues.length + 1))
+        updateValues.push(validatedData.rt_id)
         updateFields.push('rt = $' + (updateValues.length + 1))
         updateValues.push(rt.number)
         updateFields.push('rw = $' + (updateValues.length + 1))
         updateValues.push(rt.rw)
       } else {
-        updateFields.push('rtId = NULL')
+        updateFields.push('rt_id = NULL')
+        // If rt_id is null, also clear rt and rw
+        updateFields.push('rt = NULL')
+        updateFields.push('rw = NULL')
+      }
+    } else {
+      // Only update individual rt/rw if rt_id is not provided
+      if (validatedData.rt !== undefined) {
+        updateFields.push('rt = $' + (updateValues.length + 1))
+        updateValues.push(validatedData.rt)
+      }
+      if (validatedData.rw !== undefined) {
+        updateFields.push('rw = $' + (updateValues.length + 1))
+        updateValues.push(validatedData.rw)
       }
     }
     if (validatedData.blok !== undefined) {
       updateFields.push('blok = $' + (updateValues.length + 1))
       updateValues.push(validatedData.blok)
     }
-    if (validatedData.houseNumber !== undefined) {
-      updateFields.push('houseNumber = $' + (updateValues.length + 1))
-      updateValues.push(validatedData.houseNumber)
+    if (validatedData.house_number !== undefined) {
+      updateFields.push('"house_number" = $' + (updateValues.length + 1))
+      updateValues.push(validatedData.house_number)
     }
-    if (paymentIndex !== resident.paymentIndex) {
-      updateFields.push('paymentIndex = $' + (updateValues.length + 1))
-      updateValues.push(paymentIndex)
+    if (payment_index !== resident.payment_index) {
+      updateFields.push('"payment_index" = $' + (updateValues.length + 1))
+      updateValues.push(payment_index)
     }
     if (validatedData.ownership !== undefined) {
-      updateFields.push('ownership = $' + (updateValues.length + 1) + '::"HouseOwnership"')
-      updateValues.push(validatedData.ownership)
+      updateFields.push('ownership = ' + (validatedData.ownership ? `'${validatedData.ownership}'::"HouseOwnership"` : 'NULL'))
+      // Don't push to updateValues since we're using direct SQL injection
     }
-    if (validatedData.isActive !== undefined) {
-      updateFields.push('isActive = $' + (updateValues.length + 1))
-      updateValues.push(validatedData.isActive)
+    if (validatedData.is_active !== undefined) {
+      updateFields.push('is_active = ' + (validatedData.is_active ? 'true' : 'false'))
+      // Don't push to updateValues since we're using direct SQL injection
     }
 
     if (updateFields.length === 0) {
@@ -216,7 +222,7 @@ export async function PUT(
       )
     }
 
-    updateFields.push('updatedAt = NOW()')
+    updateFields.push('updated_at = NOW()')
     updateValues.push(id)
 
     // Build the dynamic SQL query
@@ -224,19 +230,19 @@ export async function PUT(
     const updatedResident = await db.$queryRawUnsafe(
       `UPDATE residents
        SET ${setClause}
-       WHERE id = $${updateValues.length + 1}
-       RETURNING id, name, address, phone, email, rt, rw, blok, houseNumber, paymentIndex, ownership, isActive, createdAt, updatedAt, createdById`,
+       WHERE id = $${updateValues.length}
+       RETURNING id, name, address, phone, email, rt, rw, blok, "house_number", "payment_index", ownership, "is_active", "created_at", "updated_at", "created_by_id", "rt_id"`,
       ...updateValues
     ) as any[]
 
     // Get the creator info
-    const createdBy = await db.$queryRaw`
-      SELECT id, name, email FROM users WHERE id = ${updatedResident[0].createdById} LIMIT 1
+    const created_by = await db.$queryRaw`
+      SELECT id, name, email FROM users WHERE id = ${updatedResident[0].created_by_id} LIMIT 1
     ` as any[]
 
     return NextResponse.json({
       ...updatedResident[0],
-      createdBy: createdBy[0]
+      created_by: created_by[0]
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -271,10 +277,10 @@ export async function DELETE(
       )
     }
 
-    // Soft delete - set isActive to false
+    // Soft delete - set is_active to false
     await db.resident.update({
       where: { id: params.id },
-      data: { isActive: false }
+      data: { is_active: false }
     })
 
     return NextResponse.json({ message: 'Warga berhasil dihapus' })

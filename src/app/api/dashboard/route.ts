@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 // Default settings
 const defaultSettings = {
   defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
-  dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
+  due_date: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
   rwSettings: {
     activeRWs: [12],
     defaultRW: 12
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // Get total residents count
     const totalResidents = await db.resident.count({
-      where: { isActive: true }
+      where: { is_active: true }
     })
 
     // Get current active period (current month)
@@ -49,32 +49,57 @@ export async function GET(request: NextRequest) {
       where: { 
         month: currentMonth,
         year: currentYear,
-        isActive: true 
+        is_active: true 
       }
     })
     
     // Fallback to latest active period if current month not found
     if (!currentPeriod) {
       currentPeriod = await db.paymentPeriod.findFirst({
-        where: { isActive: true },
-        orderBy: { dueDate: 'desc' }
+        where: { is_active: true },
+        orderBy: { due_date: 'desc' }
       })
     }
 
-    // Get payment statistics based on schedule items (since payments can cover multiple periods)
-    const paymentsStats = await db.payment.groupBy({
-      by: ['status'],
-      _count: { _all: true },
-      _sum: { amount: true },
-      where: currentPeriod
-        ? { scheduleItems: { some: { periodId: currentPeriod.id } } }
-        : {}
-    })
+    // Get payment statistics based on schedule items for current period
+    let totalPaid = 0
+    let totalPending = 0
+    let totalOverdue = 0
 
-    // Calculate statistics
-    const totalPaid = paymentsStats.find(stat => stat.status === 'VERIFIED')?._count._all || 0
-    const totalPending = paymentsStats.find(stat => stat.status === 'PENDING')?._count._all || 0
-    const totalOverdue = paymentsStats.find(stat => stat.status === 'REJECTED')?._count._all || 0
+    if (currentPeriod) {
+      // Count residents who have paid for current period
+      const paidResidents = await db.paymentScheduleItem.count({
+        where: {
+          period_id: currentPeriod.id,
+          status: 'PAID'
+        }
+      })
+
+      // Count residents with pending payments for current period
+      const pendingResidents = await db.paymentScheduleItem.count({
+        where: {
+          period_id: currentPeriod.id,
+          payment: {
+            status: 'PENDING'
+          }
+        }
+      })
+
+      // Count residents who are overdue (have schedule items but no payment and past due date)
+      const now = new Date()
+      const overdueResidents = await db.paymentScheduleItem.count({
+        where: {
+          period_id: currentPeriod.id,
+          status: { not: 'PAID' },
+          due_date: { lt: now },
+          payment: null
+        }
+      })
+
+      totalPaid = paidResidents
+      totalPending = pendingResidents
+      totalOverdue = overdueResidents
+    }
 
     // Compute total income by summing verified and manual paid payments (more reliable approach)
     const incomeAgg = await db.payment.aggregate({
@@ -82,65 +107,57 @@ export async function GET(request: NextRequest) {
       _sum: { amount: true }
     })
     const totalIncome = incomeAgg._sum.amount || 0
-    const collectionRate = totalResidents > 0 ? Math.round((totalPaid / totalResidents) * 100) : 0
+    
+    // Calculate collection rate based on schedule items for current period
+    let collectionRate = 0
+    if (currentPeriod) {
+      const totalScheduled = await db.paymentScheduleItem.count({
+        where: {
+          period_id: currentPeriod.id,
+          status: { not: 'SKIPPED' }
+        }
+      })
+      collectionRate = totalScheduled > 0 ? Math.round((totalPaid / totalScheduled) * 100) : 0
+    }
 
     // Get recent payments
     const recentPayments = await db.payment.findMany({
       take: 5,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
       include: {
-        resident: {
-          select: {
-            id: true,
-            name: true,
-            address: true,
-            phone: true,
-            rt: true,
-            rw: true
-          }
-        },
-        scheduleItems: {
+        resident: true,
+        schedule_items: {
           include: {
-            period: {
-              select: { id: true, name: true, month: true, year: true, amount: true }
-            }
+            period: true
           }
         },
-        proofs: {
-          select: {
-            id: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+        proofs: true,
+        created_by: true
       }
     })
 
     // Format recent payments for response
     const formattedRecentPayments = recentPayments.map(payment => ({
       id: payment.id,
-      residentName: payment.resident.name,
+      residentName: (payment as any).resident?.name || 'Unknown',
       amount: payment.amount,
-      paymentDate: payment.paymentDate.toISOString().split('T')[0],
+      payment_date: payment.payment_date.toISOString().split('T')[0],
       status: payment.status,
-      periods: payment.scheduleItems?.map(si => si.period?.name).filter(Boolean) || [],
-      hasProof: payment.proofs.length > 0
+      periods: (payment as any).schedule_items?.map((si: any) => si.period?.name).filter(Boolean) || [],
+      hasProof: (payment as any).proofs?.length > 0 || false
     }))
 
-    // Get unpaid residents for current period
+    // Get unpaid residents for current period (those with overdue schedule items)
     const unpaidResidents = currentPeriod ? await db.resident.findMany({
       where: {
-        isActive: true,
-        // Resident has schedule items for the current period
-        scheduleItems: { some: { periodId: currentPeriod.id } },
-        // And none of them are marked as paid for the current period
-        AND: {
-          scheduleItems: { none: { periodId: currentPeriod.id, paidDate: { not: null } } }
+        is_active: true,
+        schedule_items: {
+          some: {
+            period_id: currentPeriod.id,
+            status: { not: 'PAID' },
+            due_date: { lt: new Date() },
+            payment: null
+          }
         }
       },
       take: 5,
@@ -150,7 +167,7 @@ export async function GET(request: NextRequest) {
     // Calculate days overdue for unpaid residents
     const formattedUnpaidResidents = unpaidResidents.map(resident => {
       const daysOverdue = currentPeriod ? 
-        Math.max(0, Math.floor((new Date().getTime() - new Date(currentPeriod.dueDate).getTime()) / (1000 * 60 * 60 * 24))) : 
+        Math.max(0, Math.floor((new Date().getTime() - new Date(currentPeriod.due_date).getTime()) / (1000 * 60 * 60 * 24))) : 
         0
       
       return {
@@ -166,37 +183,128 @@ export async function GET(request: NextRequest) {
     const totalProofs = await db.paymentProof.count()
 
     // Get tunggakan (overdue) statistics per RT and RW
-    const activeRWs = paymentSettings.rwSettings.activeRWs.join(',')
-    const overdueByRT = currentPeriod ? await db.$queryRaw`
-      SELECT
-        r.rt,
-        r.rw,
-        COUNT(DISTINCT r.id) as totalResidents,
-        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN r.id END) as overdueResidents,
-        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN psi.amount ELSE 0 END) as overdueAmount
-      FROM residents r
-      LEFT JOIN payment_schedule_items psi ON r.id = psi.residentId
-        AND psi.periodId = ${currentPeriod.id}
-      WHERE r.isActive = 1 AND r.rw IN (${activeRWs})
-      GROUP BY r.rt, r.rw
-      HAVING COUNT(DISTINCT r.id) > 0  -- Only show RT/RW combinations that actually have residents
-      ORDER BY r.rw, r.rt
-    ` as any[] : []
+    const activeRWs = paymentSettings.rwSettings.activeRWs
+    
+    // Get all RTs first, then calculate overdue statistics
+    const allRTs = await db.rT.findMany({
+      where: { 
+        rw: { in: activeRWs },
+        is_active: true 
+      },
+      select: { number: true, rw: true },
+      orderBy: [{ rw: 'asc' }, { number: 'asc' }]
+    })
 
-    const overdueByRW = currentPeriod ? await db.$queryRaw`
-      SELECT
-        r.rw,
-        COUNT(DISTINCT r.id) as totalResidents,
-        COUNT(DISTINCT CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN r.id END) as overdueResidents,
-        SUM(CASE WHEN psi.status NOT IN ('PAID', 'SKIPPED') AND psi.dueDate < NOW() THEN psi.amount ELSE 0 END) as overdueAmount
-      FROM residents r
-      LEFT JOIN payment_schedule_items psi ON r.id = psi.residentId
-        AND psi.periodId = ${currentPeriod.id}
-      WHERE r.isActive = 1 AND r.rw IN (${activeRWs})
-      GROUP BY r.rw
-      HAVING COUNT(DISTINCT r.id) > 0  -- Only show RW combinations that actually have residents
-      ORDER BY r.rw
-    ` as any[] : []
+    const overdueByRT = currentPeriod ? await Promise.all(allRTs.map(async (rt) => {
+      // Get residents for this RT
+      const residents = await db.resident.findMany({
+        where: { 
+          rt: rt.number, 
+          rw: rt.rw, 
+          is_active: true 
+        },
+        select: { id: true }
+      })
+
+      const residentIds = residents.map(r => r.id)
+      
+      if (residentIds.length === 0) {
+        // RT has no residents
+        return {
+          rt: rt.number,
+          rw: rt.rw,
+          totalResidents: 0,
+          overdueResidents: 0,
+          overdueAmount: 0
+        }
+      }
+
+      // Get overdue statistics for this RT
+      const totalResidents = residents.length
+      
+      // Count overdue residents (those with unpaid schedule items past due date)
+      const overdueResidents = await db.paymentScheduleItem.count({
+        where: {
+          resident_id: { in: residentIds },
+          period_id: currentPeriod.id,
+          status: { not: 'PAID' },
+          due_date: { lt: new Date() },
+          payment: null
+        }
+      })
+      
+      // Calculate overdue amount
+      const overdueAmountResult = await db.paymentScheduleItem.aggregate({
+        where: {
+          resident_id: { in: residentIds },
+          period_id: currentPeriod.id,
+          status: { not: 'PAID' },
+          due_date: { lt: new Date() },
+          payment: null
+        },
+        _sum: { amount: true }
+      })
+      
+      return {
+        rt: rt.number,
+        rw: rt.rw,
+        totalResidents,
+        overdueResidents,
+        overdueAmount: Number(overdueAmountResult._sum.amount) || 0
+      }
+    })) : []
+
+    const overdueByRW = currentPeriod ? await Promise.all(activeRWs.map(async (rw) => {
+      // Get all residents for this RW
+      const rwResidents = await db.resident.findMany({
+        where: { 
+          rw: rw, 
+          is_active: true 
+        },
+        select: { id: true }
+      })
+
+      const residentIds = rwResidents.map(r => r.id)
+      
+      if (residentIds.length === 0) {
+        return {
+          rw: rw,
+          totalResidents: 0,
+          overdueResidents: 0,
+          overdueAmount: 0
+        }
+      }
+
+      // Count overdue residents for this RW
+      const overdueResidents = await db.paymentScheduleItem.count({
+        where: {
+          resident_id: { in: residentIds },
+          period_id: currentPeriod.id,
+          status: { not: 'PAID' },
+          due_date: { lt: new Date() },
+          payment: null
+        }
+      })
+      
+      // Calculate overdue amount for this RW
+      const overdueAmountResult = await db.paymentScheduleItem.aggregate({
+        where: {
+          resident_id: { in: residentIds },
+          period_id: currentPeriod.id,
+          status: { not: 'PAID' },
+          due_date: { lt: new Date() },
+          payment: null
+        },
+        _sum: { amount: true }
+      })
+      
+      return {
+        rw: rw,
+        totalResidents: residentIds.length,
+        overdueResidents,
+        overdueAmount: Number(overdueAmountResult._sum.amount) || 0
+      }
+    })) : []
 
     return NextResponse.json({
       stats: {
@@ -210,30 +318,19 @@ export async function GET(request: NextRequest) {
           month: currentPeriod.month,
           year: currentPeriod.year,
           amount: currentPeriod.amount,
-          dueDate: currentPeriod.dueDate.toISOString().split('T')[0]
+          due_date: currentPeriod.due_date.toISOString().split('T')[0]
         } : null
       },
       totalIncome,
       totalProofs,
       paymentSettings: {
         defaultAmount: paymentSettings.defaultAmount,
-        dueDate: paymentSettings.dueDate
+        due_date: paymentSettings.due_date
       },
       recentPayments: formattedRecentPayments,
       unpaidResidents: formattedUnpaidResidents,
-      overdueByRT: overdueByRT.map(rt => ({
-        rt: Number(rt.rt),
-        rw: Number(rt.rw),
-        totalResidents: Number(rt.totalResidents),
-        overdueResidents: Number(rt.overdueResidents),
-        overdueAmount: Number(rt.overdueAmount) || 0
-      })),
-      overdueByRW: overdueByRW.map(rw => ({
-        rw: Number(rw.rw),
-        totalResidents: Number(rw.totalResidents),
-        overdueResidents: Number(rw.overdueResidents),
-        overdueAmount: Number(rw.overdueAmount) || 0
-      }))
+      overdueByRT: overdueByRT,
+      overdueByRW: overdueByRW
     })
   } catch (error) {
     console.error('Error fetching dashboard data:', error)

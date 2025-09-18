@@ -180,24 +180,24 @@ export const createValidationSchemas = {
     rt: z.number().min(1, 'RT harus diisi').max(20, 'RT maksimal 20'),
     rw: z.number().min(1, 'RW harus diisi').max(20, 'RW maksimal 20'),
     blok: z.string().min(1, 'BLOK harus diisi').optional(),
-    houseNumber: z.string().min(1, 'Nomor rumah harus diisi').optional(),
-    paymentIndex: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
+    house_number: z.string().min(1, 'Nomor rumah harus diisi').optional(),
+    payment_index: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
     ownership: z.enum(['MILIK', 'SEWA']).optional().nullable(),
-    rtId: z.string().optional().nullable(),
+    rt_id: z.string().optional().nullable(),
   }),
 
   // Payment management schema
   payment: z.object({
-    residentId: z.string().min(1, 'ID warga harus diisi'),
-    periodId: z.string().optional(),
+    resident_id: z.string().min(1, 'ID warga harus diisi'),
+    period_id: z.string().optional(),
     amount: z.number().min(1, 'Jumlah pembayaran harus lebih dari 0'),
-    paymentDate: z.string().min(1, 'Tanggal pembayaran harus diisi'),
-    paymentMethod: z.string().optional(),
+    payment_date: z.string().min(1, 'Tanggal pembayaran harus diisi'),
+    payment_method: z.string().optional(),
     notes: z.string().nullable().optional(),
     scheduleItemId: z.string().optional(),
-  }).refine(data => data.periodId || data.scheduleItemId, {
+  }).refine(data => data.period_id || data.scheduleItemId, {
     message: 'Periode atau item jadwal harus dipilih',
-    path: ['periodId'],
+    path: ['period_id'],
   }),
 
   // RT management schema
@@ -211,10 +211,10 @@ export const createValidationSchemas = {
 
   // Schedule management schema
   schedule: z.object({
-    residentId: z.string().min(1, 'ID warga harus diisi'),
+    resident_id: z.string().min(1, 'ID warga harus diisi'),
     type: z.enum(['MONTHLY', 'SPECIAL', 'DONATION']),
     amount: z.number().min(0, 'Jumlah harus lebih dari atau sama dengan 0'),
-    dueDate: z.string().min(1, 'Tanggal jatuh tempo harus diisi'),
+    due_date: z.string().min(1, 'Tanggal jatuh tempo harus diisi'),
     notes: z.string().optional(),
   }),
 }

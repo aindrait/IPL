@@ -16,18 +16,18 @@ interface MonthData {
   scheduled: boolean
   paid: boolean
   amount: number
-  paymentDate?: string
+  payment_date?: string
   daysOverdue?: number
   status: 'paid' | 'overdue' | 'scheduled' | 'unscheduled' | 'pending' | 'skipped'
   scheduleItemId?: string
-  paymentId?: string
+  payment_id?: string
 }
 
 interface ResidentMonitoring {
   id: string
   name: string
   blok: string
-  houseNumber: string
+  house_number: string
   rt: number
   months: Record<string, MonthData>
   totalPaid: number
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching monitoring data for RT: ${rtFilter}, Year: ${yearFilter}`)
 
     // Build where clause for residents
-    const residentsWhere: any = { isActive: true }
+    const residentsWhere: any = { is_active: true }
     if (rtFilter !== 'all') {
       residentsWhere.rt = parseInt(rtFilter)
     }
@@ -56,14 +56,14 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         blok: true,
-        houseNumber: true,
+        house_number: true,
         rt: true,
         rw: true,
       },
       orderBy: [
         { rt: 'asc' },
         { blok: 'asc' },
-        { houseNumber: 'asc' },
+        { house_number: 'asc' },
         { name: 'asc' }
       ]
     })
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest) {
     console.log(`Found ${residents.length} residents`)
 
     // Get all schedule items for the year and residents
-    const scheduleItems = await db.paymentScheduleItem.findMany({
+    const schedule_items = await db.paymentScheduleItem.findMany({
       where: {
-        residentId: { in: residents.map(r => r.id) },
+        resident_id: { in: residents.map(r => r.id) },
         period: {
           year: yearFilter
         }
@@ -86,27 +86,27 @@ export async function GET(request: NextRequest) {
             month: true,
             year: true,
             amount: true,
-            dueDate: true
+            due_date: true
           }
         },
         payment: {
           select: {
             id: true,
             status: true,
-            paymentDate: true,
+            payment_date: true,
             amount: true
           }
         }
       }
     })
 
-    console.log(`Found ${scheduleItems.length} schedule items`)
+    console.log(`Found ${schedule_items.length} schedule items`)
 
     // Get all payments for verification
     const payments = await db.payment.findMany({
       where: {
-        residentId: { in: residents.map(r => r.id) },
-        scheduleItems: {
+        resident_id: { in: residents.map(r => r.id) },
+        schedule_items: {
           some: {
             period: {
               year: yearFilter
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        scheduleItems: {
+        schedule_items: {
           include: {
             period: true
           }
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Get schedule items for this resident
-      const residentScheduleItems = scheduleItems.filter(item => item.residentId === resident.id)
+      const residentScheduleItems = schedule_items.filter(item => item.resident_id === resident.id)
       
       let totalPaid = 0
       let totalScheduled = 0
@@ -168,18 +168,18 @@ export async function GET(request: NextRequest) {
           return // Skip other types
         }
 
-        const dueDate = new Date(item.period?.dueDate || item.dueDate)
+        const due_date = new Date(item.period?.due_date || item.due_date)
         const now = new Date()
-        const isOverdue = dueDate < now
-        const daysOverdue = isOverdue ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+        const isOverdue = due_date < now
+        const daysOverdue = isOverdue ? Math.floor((now.getTime() - due_date.getTime()) / (1000 * 60 * 60 * 24)) : 0
 
         months[monthKey] = {
           scheduled: true,
           paid: item.status === 'PAID' || Boolean(item.payment && item.payment.status === 'VERIFIED'),
           amount: item.amount,
           scheduleItemId: item.id,
-          paymentId: item.payment?.id || undefined,
-          paymentDate: item.payment?.paymentDate ? new Date(item.payment.paymentDate).toLocaleDateString('id-ID') : undefined,
+          payment_id: item.payment?.id || undefined,
+          payment_date: item.payment?.payment_date ? new Date(item.payment.payment_date).toLocaleDateString('id-ID') : undefined,
           daysOverdue: isOverdue && !item.payment && (item.status as string) !== 'SKIPPED' ? daysOverdue : undefined,
           status: (item.status as string) === 'SKIPPED' 
             ? 'skipped'
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
         id: resident.id,
         name: resident.name,
         blok: resident.blok || '',
-        houseNumber: resident.houseNumber || '',
+        house_number: resident.house_number || '',
         rt: resident.rt,
         months,
         totalPaid,

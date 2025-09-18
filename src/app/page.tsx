@@ -39,13 +39,13 @@ interface DashboardStats {
     month: number
     year: number
     amount: number
-    dueDate: string
+    due_date: string
   }
 }
 
 interface PaymentSettings {
   defaultAmount: number
-  dueDate: number
+  due_date: number
   rwSettings: {
     activeRWs: number[]
     defaultRW: number
@@ -56,9 +56,9 @@ interface RecentPayment {
   id: string
   residentName: string
   amount: number
-  paymentDate: string
+  payment_date: string
   status: string
-  period: string
+  periods: string[]
   hasProof: boolean
 }
 
@@ -127,13 +127,13 @@ export default function Dashboard() {
           month: 0,
           year: 0,
           amount: 0,
-          dueDate: new Date().toISOString().split('T')[0]
+          due_date: new Date().toISOString().split('T')[0]
         }
       }
 
       const mockPaymentSettings: PaymentSettings = {
         defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
-        dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
+        due_date: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
         rwSettings: {
           activeRWs: [12],
           defaultRW: 12
@@ -392,7 +392,7 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Batas Pembayaran</p>
-              <p className="text-lg font-semibold">{stats?.currentPeriod?.dueDate || '-'}</p>
+              <p className="text-lg font-semibold">{stats?.currentPeriod?.due_date || '-'}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Tingkat Pencapaian</p>
@@ -444,9 +444,9 @@ export default function Dashboard() {
                     {recentPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/50">
                         <TableCell className="font-medium">{payment.residentName}</TableCell>
-                        <TableCell>{payment.period}</TableCell>
+                        <TableCell>{payment.periods.join(', ')}</TableCell>
                         <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
-                        <TableCell>{payment.paymentDate}</TableCell>
+                        <TableCell>{payment.payment_date}</TableCell>
                         <TableCell>{getStatusBadge(payment.status)}</TableCell>
                         <TableCell>
                           {payment.hasProof ? (

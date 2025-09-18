@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Convert file to base64
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString('base64')
-    const mimeType = file.type
+    const mime_type = file.type
 
     // Initialize ZAI SDK
     const zai = await ZAI.create()
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
       "senderName": string,
       "recipientName": string,
       "transferDate": string (YYYY-MM-DD format),
-      "bankName": string,
-      "referenceNumber": string,
+      "bank_name": string,
+      "reference_number": string,
       "notes": string,
       "confidence": number (0-1),
       "isTransferProof": boolean
@@ -75,11 +75,11 @@ export async function POST(request: NextRequest) {
     - Respond with ONLY the JSON object, no additional text
     `
 
-    const response = await fetch(`data:${mimeType};base64,${base64}`)
+    const response = await fetch(`data:${mime_type};base64,${base64}`)
     const blob = await response.blob()
     
     // Convert blob to file for ZAI
-    const analysisFile = new File([blob], 'transfer_proof.jpg', { type: mimeType })
+    const analysisFile = new File([blob], 'transfer_proof.jpg', { type: mime_type })
 
     // For now, we'll use the chat completion with a detailed prompt
     // In a production environment, you might want to use vision models if available
@@ -97,25 +97,25 @@ export async function POST(request: NextRequest) {
       temperature: 0.1, // Low temperature for more consistent results
     })
 
-    let analysisResult
+    let analysis_result
     try {
       const content = completion.choices[0]?.message?.content
       if (content) {
         // Clean the response to ensure it's valid JSON
         const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        analysisResult = JSON.parse(cleanContent)
+        analysis_result = JSON.parse(cleanContent)
       } else {
         throw new Error('No analysis result received')
       }
     } catch (parseError) {
       console.error('Error parsing analysis result:', parseError)
-      analysisResult = {
+      analysis_result = {
         amount: null,
         senderName: null,
         recipientName: null,
         transferDate: null,
-        bankName: null,
-        referenceNumber: null,
+        bank_name: null,
+        reference_number: null,
         notes: 'Failed to parse analysis result',
         confidence: 0,
         isTransferProof: false
@@ -127,33 +127,33 @@ export async function POST(request: NextRequest) {
       where: { id: paymentProofId },
       data: {
         analyzed: true,
-        analysisResult: JSON.stringify(analysisResult)
+        analysis_result: JSON.stringify(analysis_result)
       }
     })
 
     // If analysis is confident and shows valid transfer, suggest auto-verification
     let autoVerifySuggestion: AutoVerifySuggestion | null = null
-    if (analysisResult.isTransferProof && analysisResult.confidence > 0.8) {
+    if (analysis_result.isTransferProof && analysis_result.confidence > 0.8) {
       const expectedAmount = paymentProof.payment.period.amount
-      const extractedAmount = analysisResult.amount
+      const extractedAmount = analysis_result.amount
 
       if (extractedAmount && Math.abs(extractedAmount - expectedAmount) < 1000) { // Allow small difference
         autoVerifySuggestion = {
           action: 'VERIFY',
-          confidence: analysisResult.confidence,
+          confidence: analysis_result.confidence,
           reason: `Amount matches expected IPL payment (${expectedAmount} vs ${extractedAmount})`
         }
       } else if (extractedAmount) {
         autoVerifySuggestion = {
           action: 'REVIEW',
-          confidence: analysisResult.confidence,
+          confidence: analysis_result.confidence,
           reason: `Amount mismatch: expected ${expectedAmount}, found ${extractedAmount}`
         }
       }
     }
 
     return NextResponse.json({
-      analysisResult,
+      analysis_result,
       autoVerifySuggestion,
       paymentProof: {
         id: paymentProof.id,
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
           where: { id: paymentProofId },
           data: {
             analyzed: true,
-            analysisResult: JSON.stringify({
+            analysis_result: JSON.stringify({
               error: error instanceof Error ? error.message : 'Analysis failed',
               confidence: 0,
               isTransferProof: false

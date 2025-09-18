@@ -7,7 +7,7 @@ const updateRTSchema = z.object({
   rw: z.number().min(1, 'Nomor RW harus diisi').optional(),
   chairman: z.string().optional(),
   phone: z.string().optional(),
-  isActive: z.boolean().optional(),
+  is_active: z.boolean().optional(),
 })
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -20,8 +20,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             id: true,
             name: true,
             blok: true,
-            houseNumber: true,
-            isActive: true,
+            house_number: true,
+            is_active: true,
           }
         }
       }
@@ -120,7 +120,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // Check if RT has residents
     const residentsCount = await db.resident.count({
-      where: { rtId: params.id }
+      where: { rt_id: params.id }
     })
 
     if (residentsCount > 0) {

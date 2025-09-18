@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
           where: {
             AND: [
               {
-                transactionDate: {
+                transaction_date: {
                   gte: new Date(hintYear, forceMonth - 1, 1),
                   lt: new Date(hintYear, forceMonth, 1)
                 }
@@ -77,15 +77,15 @@ export async function POST(request: NextRequest) {
     
     // Get residents with payment indices for matching
     const residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       select: {
         id: true,
         name: true,
-        paymentIndex: true,
+        payment_index: true,
         rt: true,
         rw: true,
         blok: true,
-        houseNumber: true
+        house_number: true
       }
     }) as any[]
 
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
     const residentNameMap: { id: string; name: string; aliases?: string[] }[] = []
     
     residents.forEach(resident => {
-      if (resident.paymentIndex) {
-        paymentIndexMap.set(resident.paymentIndex, resident.id)
+      if (resident.payment_index) {
+        paymentIndexMap.set(resident.payment_index, resident.id)
       }
       
       residentNameMap.push({
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     // Prepare bulk insert data
     const bankMutationsToInsert: any[] = []
     const bankVerificationsToInsert: any[] = []
-    const aliasesToUpdate: Map<string, any[]> = new Map() // residentId -> aliases to update
+    const aliasesToUpdate: Map<string, any[]> = new Map() // resident_id -> aliases to update
 
     for (const transaction of transactions) {
       try {
@@ -135,73 +135,73 @@ export async function POST(request: NextRequest) {
           continue
         }
         
-        // Categorize transaction with transactionType
-        const categorization = categorizeTransaction(transaction.description, transaction.transactionType)
+        // Categorize transaction with transaction_type
+        const categorization = categorizeTransaction(transaction.description, transaction.transaction_type)
         
         // Skip transactions without a valid transaction type
-        if (!transaction.transactionType) {
+        if (!transaction.transaction_type) {
           parseErrors.push(`Skipping transaction without valid type: ${transaction.description}`)
           continue
         }
         
-        const transactionDate = new Date(transaction.date)
+        const transaction_date = new Date(transaction.date)
         
         // Extract payment index from amount
-        const paymentIndex = extractPaymentIndexFromAmount(transaction.amount)
+        const payment_index = extractPaymentIndexFromAmount(transaction.amount)
         
         // Parse description
         const descriptionData = parseDescription(transaction.description)
         
         // Attempt matching
-        let matchedResidentId: string | null = null
-        let matchedPaymentId: string | null = null
-        let matchScore = 0
-        let matchingStrategy = 'NONE'
+        let matched_resident_id: string | null = null
+        let matched_payment_id: string | null = null
+        let match_score = 0
+        let matching_strategy = 'NONE'
         
         // Strategy 1: Payment Index Match (highest priority)
-        if (paymentIndex && paymentIndexMap.has(paymentIndex)) {
-          matchedResidentId = paymentIndexMap.get(paymentIndex)!
-          matchingStrategy = 'PAYMENT_INDEX'
-          matchScore = 0.9
+        if (payment_index && paymentIndexMap.has(payment_index)) {
+          matched_resident_id = paymentIndexMap.get(payment_index)!
+          matching_strategy = 'PAYMENT_INDEX'
+          match_score = 0.9
           
           // Try to find matching payment in recent dates
           const paymentQueryStart = Date.now()
           const matchingPayment = await db.payment.findFirst({
             where: {
-              residentId: matchedResidentId,
+              resident_id: matched_resident_id,
               amount: transaction.amount,
-              paymentDate: {
-                gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days before
-                lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)  // 7 days after
+              payment_date: {
+                gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days before
+                lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)  // 7 days after
               }
             },
-            orderBy: { paymentDate: 'desc' }
+            orderBy: { payment_date: 'desc' }
           })
           performanceMetrics.paymentQueryTime += Date.now() - paymentQueryStart
           
           if (matchingPayment) {
-            matchedPaymentId = matchingPayment.id
-            matchScore = 0.95
+            matched_payment_id = matchingPayment.id
+            match_score = 0.95
           }
         }
         
         // Strategy 2: Name Fuzzy Matching (if no payment index match)
-        if (!matchedResidentId && descriptionData.names.length > 0) {
+        if (!matched_resident_id && descriptionData.names.length > 0) {
           for (const name of descriptionData.names) {
             const nameMatch = findBestNameMatch(name, residentNameMap)
             if (nameMatch && nameMatch.similarity > 0.7) {
-              matchedResidentId = nameMatch.residentId
-              matchingStrategy = 'NAME_MATCH'
-              matchScore = nameMatch.similarity * 0.6 // Lower confidence for name-only matches
+              matched_resident_id = nameMatch.resident_id
+              matching_strategy = 'NAME_MATCH'
+              match_score = nameMatch.similarity * 0.6 // Lower confidence for name-only matches
               break
             }
           }
         }
         
         // Determine if auto-matched or needs review
-        const isAutoMatched = matchScore >= 0.8
+        const isAutoMatched = match_score >= 0.8
         // We no longer auto-verify on upload; mark for review instead
-        if (matchScore > 0) {
+        if (match_score > 0) {
           needsReviewCount++
         } else {
           needsReviewCount++
@@ -213,45 +213,45 @@ export async function POST(request: NextRequest) {
         // Prepare bank mutation data for bulk insert
         bankMutationsToInsert.push({
           id: tempMutationId, // Will be replaced with actual ID after insertion
-          transactionDate,
+          transaction_date,
           description: transaction.description,
           amount: transaction.amount,
           balance: transaction.balance,
-          referenceNumber: transaction.reference,
-          transactionType: transaction.transactionType,
+          reference_number: transaction.reference,
+          transaction_type: transaction.transaction_type,
           category: categorization.category,
-          isOmitted: categorization.shouldOmit,
-          omitReason: categorization.omitReason,
-          matchedResidentId,
-          matchedPaymentId,
-          matchScore,
-          matchingStrategy,
-          rawData: JSON.stringify(transaction),
-          uploadBatch: batchId,
-          fileName: file.name,
-          isVerified: false
+          is_omitted: categorization.shouldOmit,
+          omit_reason: categorization.omit_reason,
+          matched_resident_id,
+          matched_payment_id,
+          match_score,
+          matching_strategy,
+          raw_data: JSON.stringify(transaction),
+          upload_batch: batchId,
+          file_name: file.name,
+          is_verified: false
         })
 
         // Prepare verification data for bulk insert
         bankVerificationsToInsert.push({
-          mutationId: tempMutationId, // Will be updated with actual ID after insertion
-          action: matchScore > 0 ? 'AUTO_MATCH' : 'SYSTEM_UNMATCH',
-          confidence: matchScore,
-          verifiedBy: 'SYSTEM',
-          notes: `Initial match using ${matchingStrategy} strategy`
+          mutation_id: tempMutationId, // Will be updated with actual ID after insertion
+          action: match_score > 0 ? 'AUTO_MATCH' : 'SYSTEM_UNMATCH',
+          confidence: match_score,
+          verified_by: 'SYSTEM',
+          notes: `Initial match using ${matching_strategy} strategy`
         })
 
         // Collect bank aliases for bulk update
-        if (matchedResidentId && matchingStrategy === 'NAME_MATCH') {
+        if (matched_resident_id && matching_strategy === 'NAME_MATCH') {
           for (const name of descriptionData.names) {
             const nameMatch = findBestNameMatch(name, residentNameMap)
-            if (nameMatch && nameMatch.residentId === matchedResidentId) {
-              if (!aliasesToUpdate.has(matchedResidentId)) {
-                aliasesToUpdate.set(matchedResidentId, [])
+            if (nameMatch && nameMatch.resident_id === matched_resident_id) {
+              if (!aliasesToUpdate.has(matched_resident_id)) {
+                aliasesToUpdate.set(matched_resident_id, [])
               }
-              aliasesToUpdate.get(matchedResidentId)!.push({
-                bankName: name,
-                isVerified: isAutoMatched
+              aliasesToUpdate.get(matched_resident_id)!.push({
+                bank_name: name,
+                is_verified: isAutoMatched
               })
             }
           }
@@ -260,9 +260,9 @@ export async function POST(request: NextRequest) {
         processedTransactions.push({
           id: tempMutationId, // Use temporary ID for now
           ...transaction,
-          matchedResidentId,
-          matchScore,
-          matchingStrategy,
+          matched_resident_id,
+          match_score,
+          matching_strategy,
           isAutoMatched
         })
 
@@ -290,20 +290,20 @@ export async function POST(request: NextRequest) {
       // Get the inserted mutations with their actual IDs
       const insertedMutationRecords = await (db as any).bankMutation.findMany({
         where: {
-          uploadBatch: batchId
+          upload_batch: batchId
         },
         orderBy: {
-          createdAt: 'desc'
+          created_at: 'desc'
         },
         take: bankMutationsToInsert.length
       })
       
       // Update verification records with actual mutation IDs
       const verificationsToInsert = insertedMutationRecords.map((mutation: any, index: number) => ({
-        mutationId: mutation.id,
+        mutation_id: mutation.id,
         action: bankVerificationsToInsert[index].action,
         confidence: bankVerificationsToInsert[index].confidence,
-        verifiedBy: bankVerificationsToInsert[index].verifiedBy,
+        verified_by: bankVerificationsToInsert[index].verified_by,
         notes: bankVerificationsToInsert[index].notes
       }))
       
@@ -332,25 +332,25 @@ export async function POST(request: NextRequest) {
       console.log(`[BULK_INSERT] Updating ${aliasesToUpdate.size} resident aliases...`)
       const aliasUpdateStart = Date.now()
       
-      for (const [residentId, aliases] of aliasesToUpdate.entries()) {
+      for (const [resident_id, aliases] of aliasesToUpdate.entries()) {
         for (const alias of aliases) {
           await (db as any).residentBankAlias.upsert({
             where: {
               residentId_bankName: {
-                residentId,
-                bankName: alias.bankName
+                resident_id,
+                bank_name: alias.bank_name
               }
             },
             update: {
               frequency: { increment: 1 },
-              lastSeen: new Date(),
-              isVerified: alias.isVerified
+              last_seen: new Date(),
+              is_verified: alias.is_verified
             },
             create: {
-              residentId,
-              bankName: alias.bankName,
+              resident_id,
+              bank_name: alias.bank_name,
               frequency: 1,
-              isVerified: alias.isVerified
+              is_verified: alias.is_verified
             }
           })
         }
@@ -381,38 +381,38 @@ export async function POST(request: NextRequest) {
           // Find matching resident by house number
           const houseMatch = historyItem.manualVerification.noRumah
           const resident = residents.find(r => 
-            r.blok && r.houseNumber && 
-            `${r.blok} / ${r.houseNumber}` === houseMatch
+            r.blok && r.house_number && 
+            `${r.blok} / ${r.house_number}` === houseMatch
           )
           
           if (resident) {
             // Create a bank mutation for historical data
             const historicalMutation = await (db as any).bankMutation.create({
               data: {
-                transactionDate: new Date(historyItem.originalTransaction.date),
+                transaction_date: new Date(historyItem.originalTransaction.date),
                 description: historyItem.originalTransaction.description,
                 amount: historyItem.originalTransaction.amount,
                 balance: historyItem.originalTransaction.balance,
-                transactionType: historyItem.originalTransaction.transactionType,
-                matchedResidentId: resident.id,
-                matchScore: 1.0,
-                matchingStrategy: 'HISTORICAL_IMPORT',
-                rawData: JSON.stringify(historyItem),
-                uploadBatch: `HISTORICAL_${batchId}`,
-                fileName: `historical_${file.name}`,
-                isVerified: true,
-                verifiedAt: new Date(),
-                verifiedBy: 'HISTORICAL_IMPORT'
+                transaction_type: historyItem.originalTransaction.transaction_type,
+                matched_resident_id: resident.id,
+                match_score: 1.0,
+                matching_strategy: 'HISTORICAL_IMPORT',
+                raw_data: JSON.stringify(historyItem),
+                upload_batch: `HISTORICAL_${batchId}`,
+                file_name: `historical_${file.name}`,
+                is_verified: true,
+                verified_at: new Date(),
+                verified_by: 'HISTORICAL_IMPORT'
               }
             })
             
             // Store verification history for learning
             await (db as any).bankMutationVerification.create({
               data: {
-                mutationId: historicalMutation.id,
+                mutation_id: historicalMutation.id,
                 action: 'MANUAL_CONFIRM',
                 confidence: 1.0,
-                verifiedBy: 'HISTORICAL_IMPORT',
+                verified_by: 'HISTORICAL_IMPORT',
                 notes: `Historical verification: ${houseMatch} - ${historyItem.manualVerification.bulan}/${historyItem.manualVerification.tahun}`
               }
             })
@@ -425,20 +425,20 @@ export async function POST(request: NextRequest) {
                   await (db as any).residentBankAlias.upsert({
                     where: {
                       residentId_bankName: {
-                        residentId: resident.id,
-                        bankName: name
+                        resident_id: resident.id,
+                        bank_name: name
                       }
                     },
                     update: {
                       frequency: { increment: 1 },
-                      lastSeen: new Date(),
-                      isVerified: true
+                      last_seen: new Date(),
+                      is_verified: true
                     },
                     create: {
-                      residentId: resident.id,
-                      bankName: name,
+                      resident_id: resident.id,
+                      bank_name: name,
                       frequency: 1,
-                      isVerified: true
+                      is_verified: true
                     }
                   })
                 }

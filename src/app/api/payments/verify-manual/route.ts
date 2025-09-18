@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 
 const verifyManualSchema = z.object({
-  paymentId: z.string(),
+  payment_id: z.string(),
   action: z.enum(['approve', 'reject']),
   adminNotes: z.string().optional(),
   verificationMethod: z.enum(['BANK_STATEMENT', 'TRANSFER_PROOF', 'MANUAL_CHECK']),
@@ -11,7 +11,7 @@ const verifyManualSchema = z.object({
     bankAccount: z.string().optional(),
     transferAmount: z.number().optional(),
     transferDate: z.string().optional(),
-    referenceNumber: z.string().optional(),
+    reference_number: z.string().optional(),
   }).optional()
 })
 
@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
 
     // Get payment with related data
     const payment = await db.payment.findUnique({
-      where: { id: input.paymentId },
+      where: { id: input.payment_id },
       include: {
         resident: {
           select: { id: true, name: true, rt: true, rw: true }
         },
-        scheduleItems: {
+        schedule_items: {
           include: {
             period: {
               select: { name: true, month: true, year: true }
@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join(' | ')
 
     const updatedPayment = await db.payment.update({
-      where: { id: input.paymentId },
+      where: { id: input.payment_id },
       data: {
         status: newStatus,
         notes: payment.notes 
           ? `${payment.notes} | ${verificationNotes}`
           : verificationNotes,
-        updatedAt: new Date()
+        updated_at: new Date()
       }
     })
 
@@ -72,20 +72,20 @@ export async function POST(request: NextRequest) {
     if (input.action === 'approve') {
       // If approved, mark schedule items as paid
       await db.paymentScheduleItem.updateMany({
-        where: { paymentId: payment.id },
+        where: { payment_id: payment.id },
         data: { 
           status: 'PAID',
-          paidDate: new Date()
+          paid_date: new Date()
         }
       })
     } else {
-      // If rejected, release schedule items (remove paymentId and reset status)
+      // If rejected, release schedule items (remove payment_id and reset status)
       await db.paymentScheduleItem.updateMany({
-        where: { paymentId: payment.id },
+        where: { payment_id: payment.id },
         data: { 
           status: 'PLANNED', // Reset to planned status
-          paidDate: null,
-          paymentId: null // Remove payment association
+          paid_date: null,
+          payment_id: null // Remove payment association
         }
       })
     }
@@ -93,12 +93,12 @@ export async function POST(request: NextRequest) {
     // Create verification log
     await db.paymentVerification.create({
       data: {
-        paymentId: payment.id,
-        verifiedBy: 'ADMIN', // TODO: Get from session
+        payment_id: payment.id,
+        verified_by: 'ADMIN', // TODO: Get from session
         verificationMethod: input.verificationMethod,
         status: newStatus,
         notes: verificationNotes,
-        verificationData: input.verificationDetails ? JSON.stringify(input.verificationDetails) : null
+        verification_data: input.verificationDetails ? JSON.stringify(input.verificationDetails) : null
       }
     }).catch(() => {
       // Table might not exist yet, will be created in migration
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         status: updatedPayment.status,
         residentName: payment.resident.name,
         amount: updatedPayment.amount,
-        periods: payment.scheduleItems.map(item => item.period?.name).filter(Boolean)
+        periods: payment.schedule_items.map(item => item.period?.name).filter(Boolean)
       }
     })
 

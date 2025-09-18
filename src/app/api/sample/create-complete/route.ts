@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
           rt: 1,
           rw: 12,
           blok: 'C11',
-          houseNumber: '10',
-          paymentIndex: 1110,
-          createdById: systemUser.id,
-          rtId: rt.id
+          house_number: '10',
+          payment_index: 1110,
+          created_by_id: systemUser.id,
+          rt_id: rt.id
         }
       }),
       db.resident.create({
@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
           rt: 1,
           rw: 12,
           blok: 'C11',
-          houseNumber: '11',
-          paymentIndex: 1111,
-          createdById: systemUser.id,
-          rtId: rt.id
+          house_number: '11',
+          payment_index: 1111,
+          created_by_id: systemUser.id,
+          rt_id: rt.id
         }
       })
     ])
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           month: 8,
           year: 2025,
           amount: 200000,
-          dueDate: new Date('2025-08-31')
+          due_date: new Date('2025-08-31')
         }
       }),
       db.paymentPeriod.create({
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           month: 9,
           year: 2025,
           amount: 200000,
-          dueDate: new Date('2025-09-30')
+          due_date: new Date('2025-09-30')
         }
       })
     ])
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
       data: {
         name: 'Jadwal Pembayaran Q3 2025',
         description: 'Jadwal pembayaran IPL Q3 2025',
-        startDate: new Date('2025-08-01'),
-        endDate: new Date('2025-09-30'),
-        periodId: periods[0].id,
-        createdById: systemUser.id
+        start_date: new Date('2025-08-01'),
+        end_date: new Date('2025-09-30'),
+        period_id: periods[0].id,
+        created_by_id: systemUser.id
       }
     })
 
@@ -101,10 +101,10 @@ export async function POST(request: NextRequest) {
             type: 'MONTHLY',
             label: `IPL ${period.name}`,
             amount: period.amount,
-            dueDate: period.dueDate,
-            scheduleId: schedule.id,
-            periodId: period.id,
-            residentId: resident.id
+            due_date: period.due_date,
+            schedule_id: schedule.id,
+            period_id: period.id,
+            resident_id: resident.id
           }
         })
         scheduleItems.push(item)

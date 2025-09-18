@@ -12,16 +12,16 @@ export async function GET() {
       lastUploadResult
     ] = await Promise.all([
       (db as any).bankMutation.count(),
-      (db as any).bankMutation.count({ where: { matchedResidentId: { not: null } } }),
-      (db as any).bankMutation.count({ where: { isVerified: true } }),
+      (db as any).bankMutation.count({ where: { matched_resident_id: { not: null } } }),
+      (db as any).bankMutation.count({ where: { is_verified: true } }),
       (db as any).bankMutation.aggregate({
         _sum: {
           amount: true
         }
       }),
       (db as any).bankMutation.findFirst({
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true }
+        orderBy: { created_at: 'desc' },
+        select: { created_at: true }
       })
     ])
 
@@ -30,7 +30,7 @@ export async function GET() {
       totalMatched,
       totalVerified,
       totalAmount: totalAmountResult._sum.amount || 0,
-      lastUpload: lastUploadResult?.createdAt?.toISOString()
+      lastUpload: lastUploadResult?.created_at?.toISOString()
     }
 
     return NextResponse.json(stats)

@@ -37,11 +37,11 @@ interface Resident {
   rt: number
   rw: number
   blok?: string
-  houseNumber?: string
-  paymentIndex?: number
+  house_number?: string
+  payment_index?: number
   ownership?: 'MILIK' | 'SEWA' | null
-  isActive: boolean
-  createdAt: string
+  is_active: boolean
+  created_at: string
   createdBy: {
     id: string
     name?: string
@@ -74,10 +74,10 @@ interface FormData {
   rt: number
   rw: number
   blok?: string
-  houseNumber?: string
-  paymentIndex?: number
+  house_number?: string
+  payment_index?: number
   ownership?: 'MILIK' | 'SEWA' | null
-  rtId?: string
+  rt_id?: string
 }
 
 export default function ResidentsPage() {
@@ -118,10 +118,10 @@ export default function ResidentsPage() {
       rt: 1,
       rw: 1,
       blok: '',
-      houseNumber: '',
-      paymentIndex: undefined,
+      house_number: '',
+      payment_index: undefined,
       ownership: null,
-      rtId: undefined
+      rt_id: undefined
     }
   )
 
@@ -221,10 +221,10 @@ export default function ResidentsPage() {
       rt: resident.rt,
       rw: resident.rw,
       blok: resident.blok || '',
-      houseNumber: resident.houseNumber || '',
-      paymentIndex: resident.paymentIndex,
+      house_number: resident.house_number || '',
+      payment_index: resident.payment_index,
       ownership: resident.ownership || null,
-      rtId: resident.rtRelation?.id
+      rt_id: resident.rtRelation?.id
     })
     setIsDialogOpen(true)
   }
@@ -255,10 +255,10 @@ export default function ResidentsPage() {
       rt: 1,
       rw: 1,
       blok: '',
-      houseNumber: '',
-      paymentIndex: undefined,
+      house_number: '',
+      payment_index: undefined,
       ownership: null,
-      rtId: undefined
+      rt_id: undefined
     })
     setEditingResident(null)
     setError('')
@@ -400,12 +400,12 @@ export default function ResidentsPage() {
                   </Label>
                   <div className="col-span-3 space-y-1">
                     <Select
-                      value={formData.rtId || ''}
+                      value={formData.rt_id || ''}
                       onValueChange={(value) => {
                         const selected = rts.find((r) => r.id === value)
                         setFormDataValues(prev => ({
                           ...prev,
-                          rtId: value,
+                          rt_id: value,
                           rt: selected ? selected.number : prev.rt,
                           rw: selected ? selected.rw : prev.rw,
                         }))
@@ -436,7 +436,7 @@ export default function ResidentsPage() {
                           ...prev,
                           rw: parseInt(value),
                           rt: 1, // Reset RT when RW changes
-                          rtId: undefined
+                          rt_id: undefined
                         }))
                       }}
                     >
@@ -470,35 +470,35 @@ export default function ResidentsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-start gap-2">
-                  <Label htmlFor="houseNumber" className="text-right pt-2">
+                  <Label htmlFor="house_number" className="text-right pt-2">
                     No. Rumah
                   </Label>
                   <div className="col-span-3 space-y-1">
                     <Input
-                      id="houseNumber"
-                      value={formData.houseNumber || ''}
-                      onChange={(e) => handleChange('houseNumber', e.target.value)}
+                      id="house_number"
+                      value={formData.house_number || ''}
+                      onChange={(e) => handleChange('house_number', e.target.value)}
                       placeholder="e.g., 9"
                     />
-                    {hasFieldError('houseNumber') && getFieldError('houseNumber') && (
-                      <p className="text-xs text-red-500">{getFieldError('houseNumber')}</p>
+                    {hasFieldError('house_number') && getFieldError('house_number') && (
+                      <p className="text-xs text-red-500">{getFieldError('house_number')}</p>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-start gap-2">
-                  <Label htmlFor="paymentIndex" className="text-right pt-2">
+                  <Label htmlFor="payment_index" className="text-right pt-2">
                     Index Bayar
                   </Label>
                   <div className="col-span-3 space-y-1">
                     <Input
-                      id="paymentIndex"
+                      id="payment_index"
                       type="number"
-                      value={formData.paymentIndex || ''}
-                      onChange={(e) => handleChange('paymentIndex', e.target.value ? parseInt(e.target.value) : undefined)}
+                      value={formData.payment_index || ''}
+                      onChange={(e) => handleChange('payment_index', e.target.value ? parseInt(e.target.value) : undefined)}
                       placeholder="e.g., 1109"
                     />
-                    {hasFieldError('paymentIndex') && getFieldError('paymentIndex') && (
-                      <p className="text-xs text-red-500">{getFieldError('paymentIndex')}</p>
+                    {hasFieldError('payment_index') && getFieldError('payment_index') && (
+                      <p className="text-xs text-red-500">{getFieldError('payment_index')}</p>
                     )}
                   </div>
                 </div>
@@ -659,16 +659,16 @@ export default function ResidentsPage() {
                         <Badge variant="outline">RT {resident.rt}/RW {resident.rw}</Badge>
                       </TableCell>
                       <TableCell>
-                        {resident.blok && resident.houseNumber ? (
-                          <Badge variant="outline">{resident.blok}/{resident.houseNumber}</Badge>
+                        {resident.blok && resident.house_number ? (
+                          <Badge variant="outline">{resident.blok}/{resident.house_number}</Badge>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {resident.paymentIndex ? (
+                        {resident.payment_index ? (
                           <Badge variant="default" className="bg-blue-100 text-blue-800">
-                            {resident.paymentIndex}
+                            {resident.payment_index}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
@@ -684,7 +684,7 @@ export default function ResidentsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {resident.isActive ? (
+                        {resident.is_active ? (
                           <Badge variant="default" className="bg-green-100 text-green-800">
                             <CheckCircle className="w-3 h-3 mr-1" />
                             Aktif
@@ -734,7 +734,7 @@ export default function ResidentsPage() {
                         <PaginationItem key={page}>
                           <PaginationLink
                             onClick={() => handlePageChange(page)}
-                            isActive={pagination.page === page}
+                            is_active={pagination.page === page}
                             className="cursor-pointer"
                           >
                             {page}

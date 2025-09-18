@@ -6,9 +6,9 @@ import path from 'path'
 
 const updatePaymentSchema = z.object({
   amount: z.number().min(1, 'Jumlah pembayaran harus lebih dari 0').optional(),
-  paymentDate: z.string().min(1, 'Tanggal pembayaran harus diisi').optional(),
+  payment_date: z.string().min(1, 'Tanggal pembayaran harus diisi').optional(),
   status: z.enum(['PENDING', 'VERIFIED', 'REJECTED']).optional().nullable(),
-  paymentMethod: z.string().optional(),
+  payment_method: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -24,14 +24,14 @@ export async function GET(
         resident: {
           select: { id: true, name: true, address: true, phone: true, rt: true, rw: true }
         },
-        scheduleItems: {
+        schedule_items: {
           include: {
             period: {
-              select: { id: true, name: true, month: true, year: true, amount: true, dueDate: true }
+              select: { id: true, name: true, month: true, year: true, amount: true, due_date: true }
             }
           }
         },
-        createdBy: {
+        created_by: {
           select: { id: true, name: true, email: true }
         },
         proofs: true
@@ -107,9 +107,9 @@ export async function PUT(
       
       const paymentData = {
         amount: parsedAmount,
-        paymentDate: formData.get('paymentDate') as string,
+        payment_date: formData.get('payment_date') as string,
         status: formData.get('status') as string,
-        paymentMethod: formData.get('paymentMethod') as string,
+        payment_method: formData.get('payment_method') as string,
         notes: formData.get('notes') as string,
       }
 
@@ -141,9 +141,9 @@ export async function PUT(
     // Update payment - filter out null values
     const updateData: any = {
       ...(parsedData.amount !== undefined && { amount: parsedData.amount }),
-      ...(parsedData.paymentDate && { paymentDate: new Date(parsedData.paymentDate) }),
+      ...(parsedData.payment_date && { payment_date: new Date(parsedData.payment_date) }),
       ...(parsedData.status !== null && parsedData.status !== undefined && { status: parsedData.status }),
-      ...(parsedData.paymentMethod !== undefined && { paymentMethod: parsedData.paymentMethod }),
+      ...(parsedData.payment_method !== undefined && { payment_method: parsedData.payment_method }),
       ...(parsedData.notes !== undefined && { notes: parsedData.notes }),
     }
     
@@ -156,14 +156,14 @@ export async function PUT(
         resident: {
           select: { id: true, name: true, address: true, phone: true, rt: true, rw: true }
         },
-        scheduleItems: {
+        schedule_items: {
           include: {
             period: {
-              select: { id: true, name: true, month: true, year: true, amount: true, dueDate: true }
+              select: { id: true, name: true, month: true, year: true, amount: true, due_date: true }
             }
           }
         },
-        createdBy: {
+        created_by: {
           select: { id: true, name: true, email: true }
         },
         proofs: true
@@ -189,7 +189,7 @@ export async function PUT(
             try {
               // Generate a unique filename
               const filename = `${Date.now()}-${file.name}`
-              const filePath = `/uploads/${filename}`
+              const file_path = `/uploads/${filename}`
               
               const buffer = Buffer.from(await file.arrayBuffer())
               await fs.writeFile(path.join(uploadDir, filename), buffer)
@@ -198,10 +198,10 @@ export async function PUT(
               await db.paymentProof.create({
                 data: {
                   filename: file.name,
-                  filePath,
-                  fileSize: file.size,
-                  mimeType: file.type,
-                  paymentId: payment.id,
+                  file_path,
+                  file_size: file.size,
+                  mime_type: file.type,
+                  payment_id: payment.id,
                 }
               })
             } catch (fileError) {
@@ -289,13 +289,13 @@ export async function DELETE(
     // Delete associated proof files
     for (const proof of existingPayment.proofs) {
       try {
-        const filePath = path.join(process.cwd(), 'public', proof.filePath)
+        const file_path = path.join(process.cwd(), 'public', proof.file_path)
         try {
-          await fs.access(filePath)
-          await fs.unlink(filePath)
-          console.log('Successfully deleted file:', filePath)
+          await fs.access(file_path)
+          await fs.unlink(file_path)
+          console.log('Successfully deleted file:', file_path)
         } catch (fileError) {
-          console.log('File not found or already deleted:', filePath, fileError)
+          console.log('File not found or already deleted:', file_path, fileError)
           // Continue with deletion even if file doesn't exist
         }
       } catch (error) {
@@ -311,18 +311,18 @@ export async function DELETE(
       // Reset all schedule items linked to this payment
       console.log('Resetting schedule items linked to this payment...')
       await tx.paymentScheduleItem.updateMany({
-        where: { paymentId: id },
+        where: { payment_id: id },
         data: {
-          paymentId: null,
+          payment_id: null,
           status: 'PLANNED',
-          paidDate: null
+          paid_date: null
         }
       })
       console.log('Schedule items reset successfully')
       
       // Delete payment proofs
       await tx.paymentProof.deleteMany({
-        where: { paymentId: id }
+        where: { payment_id: id }
       })
       console.log('Payment proofs deleted successfully')
       

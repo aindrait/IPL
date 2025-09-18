@@ -20,31 +20,31 @@ export async function POST(request: NextRequest) {
 
     // Load residents and aliases
     const residents = await (db as any).resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       select: {
         id: true,
         name: true,
-        paymentIndex: true,
+        payment_index: true,
         blok: true,
-        houseNumber: true,
+        house_number: true,
       },
     })
 
     const aliases = await (db as any).residentBankAlias.findMany({
-      select: { residentId: true, bankName: true },
+      select: { resident_id: true, bank_name: true },
     })
 
     const residentAliasesMap = new Map<string, string[]>()
     for (const a of aliases) {
-      const list = residentAliasesMap.get(a.residentId) ?? []
-      list.push(a.bankName)
-      residentAliasesMap.set(a.residentId, list)
+      const list = residentAliasesMap.get(a.resident_id) ?? []
+      list.push(a.bank_name)
+      residentAliasesMap.set(a.resident_id, list)
     }
 
     const paymentIndexMap = new Map<number, string>()
     for (const r of residents) {
-      if (typeof r.paymentIndex === 'number') {
-        paymentIndexMap.set(r.paymentIndex, r.id)
+      if (typeof r.payment_index === 'number') {
+        paymentIndexMap.set(r.payment_index, r.id)
       }
     }
 
@@ -60,14 +60,14 @@ export async function POST(request: NextRequest) {
 
     const items = await (db as any).bankMutation.findMany({
       where: {
-        isVerified: false,
+        is_verified: false,
         amount: { gt: 0 },
-        transactionDate: {
+        transaction_date: {
           gte: start,
           lte: end,
         },
       },
-      orderBy: [{ transactionDate: 'desc' as const }],
+      orderBy: [{ transaction_date: 'desc' as const }],
     })
 
     let autoVerified = 0
@@ -81,51 +81,51 @@ export async function POST(request: NextRequest) {
 
     for (const bm of items) {
       try {
-        const transactionDate = new Date(bm.transactionDate)
+        const transaction_date = new Date(bm.transaction_date)
 
         // Strategy 1: Payment Index via amount remainder (try multiple base amounts)
-        let paymentIndex: number | null = null
+        let payment_index: number | null = null
         for (const base of baseCandidates) {
-          paymentIndex = extractPaymentIndexFromAmount(Number(bm.amount), base)
-          if (paymentIndex) break
+          payment_index = extractPaymentIndexFromAmount(Number(bm.amount), base)
+          if (payment_index) break
         }
-        let matchedResidentId: string | null = null
-        let matchedPaymentId: string | null = null
-        let matchScore = 0
-        let matchingStrategy = 'NONE'
+        let matched_resident_id: string | null = null
+        let matched_payment_id: string | null = null
+        let match_score = 0
+        let matching_strategy = 'NONE'
 
-        if (paymentIndex && paymentIndexMap.has(paymentIndex)) {
-          matchedResidentId = paymentIndexMap.get(paymentIndex)!
-          matchingStrategy = 'PAYMENT_INDEX'
-          matchScore = 0.9
+        if (payment_index && paymentIndexMap.has(payment_index)) {
+          matched_resident_id = paymentIndexMap.get(payment_index)!
+          matching_strategy = 'PAYMENT_INDEX'
+          match_score = 0.9
           // Find close payment
           const matchingPayment = await (db as any).payment.findFirst({
             where: {
-              residentId: matchedResidentId,
+              resident_id: matched_resident_id,
               amount: bm.amount,
-              paymentDate: {
-                gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-                lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000),
+              payment_date: {
+                gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+                lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000),
               },
             },
-            orderBy: { paymentDate: 'desc' },
+            orderBy: { payment_date: 'desc' },
           })
           if (matchingPayment) {
-            matchedPaymentId = matchingPayment.id
-            matchScore = 0.95
+            matched_payment_id = matchingPayment.id
+            match_score = 0.95
           }
         }
 
         // Strategy 2: Fuzzy name match from description, aliases
-        if (!matchedResidentId && typeof bm.description === 'string' && bm.description.trim()) {
+        if (!matched_resident_id && typeof bm.description === 'string' && bm.description.trim()) {
           const desc = parseDescription(bm.description)
           for (const name of desc.names) {
             const nameMatch = findBestNameMatch(name, residentNameList)
             if (nameMatch && nameMatch.similarity > 0.7) {
-              matchedResidentId = nameMatch.residentId
-              matchingStrategy = 'NAME_MATCH'
+              matched_resident_id = nameMatch.resident_id
+              matching_strategy = 'NAME_MATCH'
               // Confidence from factors
-              const dateDiff = calculateDateDifference(transactionDate, transactionDate)
+              const dateDiff = calculateDateDifference(transaction_date, transaction_date)
               const confidence = calculateMatchConfidence({
                 paymentIndexMatch: false,
                 amountMatch: true,
@@ -133,28 +133,28 @@ export async function POST(request: NextRequest) {
                 nameMatch: nameMatch.similarity,
                 descriptionMatch: 0.5,
               })
-              matchScore = Math.max(matchScore, confidence)
+              match_score = Math.max(match_score, confidence)
               break
             }
           }
         }
 
-        const isAuto = matchScore >= 0.8 && matchedResidentId
-        if (matchedResidentId) {
+        const isAuto = match_score >= 0.8 && matched_resident_id
+        if (matched_resident_id) {
           matchedOnly++
         }
 
-        if (matchedResidentId || isAuto) {
+        if (matched_resident_id || isAuto) {
           await (db as any).bankMutation.update({
             where: { id: bm.id },
             data: {
-              matchedResidentId: matchedResidentId ?? bm.matchedResidentId,
-              matchedPaymentId: matchedPaymentId ?? bm.matchedPaymentId,
-              matchScore: matchScore || bm.matchScore,
-              matchingStrategy: matchingStrategy !== 'NONE' ? matchingStrategy : bm.matchingStrategy,
-              isVerified: Boolean(isAuto) || bm.isVerified,
-              verifiedAt: isAuto ? new Date() : bm.verifiedAt,
-              verifiedBy: isAuto ? 'AUTO' : bm.verifiedBy,
+              matched_resident_id: matched_resident_id ?? bm.matched_resident_id,
+              matched_payment_id: matched_payment_id ?? bm.matched_payment_id,
+              match_score: match_score || bm.match_score,
+              matching_strategy: matching_strategy !== 'NONE' ? matching_strategy : bm.matching_strategy,
+              is_verified: Boolean(isAuto) || bm.is_verified,
+              verified_at: isAuto ? new Date() : bm.verified_at,
+              verified_by: isAuto ? 'AUTO' : bm.verified_by,
             },
           })
           if (isAuto) autoVerified++

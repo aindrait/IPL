@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch candidates: active residents, names and aliases (basic)
     const residents = await (db as any).resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       select: { id: true, name: true }
     })
 
@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
 
     const items = await (db as any).bankMutation.findMany({
       where: {
-        isVerified: false,
+        is_verified: false,
         amount: { gt: 0 },
-        transactionDate: {
+        transaction_date: {
           gte: start,
           lte: end,
         },
       },
-      orderBy: [{ transactionDate: 'desc' as const }],
+      orderBy: [{ transaction_date: 'desc' as const }],
     })
 
     let matched = 0
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
           id: bm.id,
           amount: Number(bm.amount),
           description: String(bm.description || ''),
-          date: new Date(bm.transactionDate).toISOString(),
+          date: new Date(bm.transaction_date).toISOString(),
           candidates: residents,
           hints: parseDescription(String(bm.description || '')),
         }
@@ -63,23 +63,23 @@ export async function POST(request: NextRequest) {
 
         if (!res.ok) continue
         const data = await res.json().catch(() => ({} as any))
-        const residentId: string | undefined = data.residentId
+        const resident_id: string | undefined = data.resident_id
         const confidence: number = typeof data.confidence === 'number' ? data.confidence : 0
-        const paymentId: string | undefined = data.paymentId
+        const payment_id: string | undefined = data.payment_id
 
-        if (residentId) {
+        if (resident_id) {
           matched++
           const isAuto = confidence >= 0.9
           await (db as any).bankMutation.update({
             where: { id: bm.id },
             data: {
-              matchedResidentId: residentId,
-              matchedPaymentId: paymentId ?? bm.matchedPaymentId,
-              matchScore: Math.max(confidence, bm.matchScore ?? 0),
-              matchingStrategy: 'EXTERNAL_API',
-              isVerified: isAuto || bm.isVerified,
-              verifiedAt: isAuto ? new Date() : bm.verifiedAt,
-              verifiedBy: isAuto ? 'API' : bm.verifiedBy,
+              matched_resident_id: resident_id,
+              matched_payment_id: payment_id ?? bm.matched_payment_id,
+              match_score: Math.max(confidence, bm.match_score ?? 0),
+              matching_strategy: 'EXTERNAL_API',
+              is_verified: isAuto || bm.is_verified,
+              verified_at: isAuto ? new Date() : bm.verified_at,
+              verified_by: isAuto ? 'API' : bm.verified_by,
             },
           })
           if (isAuto) autoVerified++

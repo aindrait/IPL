@@ -29,18 +29,18 @@ interface MonthData {
   scheduled: boolean
   paid: boolean
   amount: number
-  paymentDate?: string
+  payment_date?: string
   daysOverdue?: number
   status: 'paid' | 'overdue' | 'scheduled' | 'unscheduled' | 'pending' | 'skipped'
   scheduleItemId?: string
-  paymentId?: string
+  payment_id?: string
 }
 
 interface ResidentMonitoring {
   id: string
   name: string
   blok: string
-  houseNumber: string
+  house_number: string
   rt: number
   months: Record<string, MonthData>
   totalPaid: number
@@ -175,8 +175,8 @@ export default function MonitoringPage() {
     
     if (monthData.status === 'skipped') {
       content += `\nStatus: Dilewati`
-    } else if (monthData.paid && monthData.paymentDate) {
-      content += `\nDibayar: ${monthData.paymentDate}`
+    } else if (monthData.paid && monthData.payment_date) {
+      content += `\nDibayar: ${monthData.payment_date}`
     } else if (monthData.daysOverdue && monthData.daysOverdue > 0) {
       content += `\nTerlambat: ${monthData.daysOverdue} hari`
     }
@@ -387,8 +387,8 @@ export default function MonitoringPage() {
                         <div>
                           <div className="font-semibold">{resident.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {resident.blok && resident.houseNumber 
-                              ? `${resident.blok}/${resident.houseNumber}` 
+                            {resident.blok && resident.house_number 
+                              ? `${resident.blok}/${resident.house_number}` 
                               : `RT ${resident.rt.toString().padStart(2, '0')}`}
                           </div>
                         </div>
@@ -410,9 +410,9 @@ export default function MonitoringPage() {
                                   `}
                                 >
                                   {getStatusIcon(monthData)}
-                                  {monthData.paid && monthData.paymentDate && (
+                                  {monthData.paid && monthData.payment_date && (
                                     <div className="text-xs mt-1 leading-none">
-                                      {monthData.paymentDate.split('/')[0]}/{monthData.paymentDate.split('/')[1]}
+                                      {monthData.payment_date.split('/')[0]}/{monthData.payment_date.split('/')[1]}
                                     </div>
                                   )}
                                 </div>

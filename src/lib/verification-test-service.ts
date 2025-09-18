@@ -42,7 +42,7 @@ export interface TestSuite {
   name: string
   description: string
   transactions: TestTransaction[]
-  createdAt: Date
+  created_at: Date
 }
 
 export interface TestReport {
@@ -60,7 +60,7 @@ export interface TestReport {
     recall: number
     f1Score: number
   }
-  createdAt: Date
+  created_at: Date
 }
 
 export class VerificationTestService {
@@ -106,36 +106,36 @@ export class VerificationTestService {
    */
   async getTestSuitesFromDatabase(): Promise<TestSuite[]> {
     // Get transactions from January - March 2025
-    const startDate = new Date('2025-01-01T00:00:00Z')
-    const endDate = new Date('2025-03-31T23:59:59Z')
+    const start_date = new Date('2025-01-01T00:00:00Z')
+    const end_date = new Date('2025-03-31T23:59:59Z')
 
     // Get unmatched transactions for testing
     const unmatchedTransactions = await (db as any).bankMutation.findMany({
       where: {
-        transactionDate: {
-          gte: startDate,
-          lte: endDate
+        transaction_date: {
+          gte: start_date,
+          lte: end_date
         },
         OR: [
-          { matchedResidentId: null },
-          { isVerified: false }
+          { matched_resident_id: null },
+          { is_verified: false }
         ]
       },
-      orderBy: { transactionDate: 'desc' },
+      orderBy: { transaction_date: 'desc' },
       take: 50 // Limit for performance
     })
 
     // Get matched transactions for testing
     const matchedTransactions = await (db as any).bankMutation.findMany({
       where: {
-        transactionDate: {
-          gte: startDate,
-          lte: endDate
+        transaction_date: {
+          gte: start_date,
+          lte: end_date
         },
-        matchedResidentId: { not: null },
-        isVerified: true
+        matched_resident_id: { not: null },
+        is_verified: true
       },
-      orderBy: { transactionDate: 'desc' },
+      orderBy: { transaction_date: 'desc' },
       take: 50 // Limit for performance
     })
 
@@ -150,13 +150,13 @@ export class VerificationTestService {
         description: 'Test unmatched transactions from database (Jan-Mar 2025)',
         transactions: unmatchedTransactions.map((t: any) => ({
           id: t.id,
-          date: t.transactionDate.toISOString(),
+          date: t.transaction_date.toISOString(),
           description: t.description,
           amount: t.amount,
           balance: t.balance,
-          reference: t.referenceNumber
+          reference: t.reference_number
         })),
-        createdAt: new Date()
+        created_at: new Date()
       })
     }
 
@@ -168,31 +168,31 @@ export class VerificationTestService {
         description: 'Test matched transactions from database (Jan-Mar 2025)',
         transactions: matchedTransactions.map((t: any) => ({
           id: t.id,
-          date: t.transactionDate.toISOString(),
+          date: t.transaction_date.toISOString(),
           description: t.description,
           amount: t.amount,
           balance: t.balance,
-          reference: t.referenceNumber,
-          expectedResidentId: t.matchedResidentId,
-          expectedConfidence: t.matchScore
+          reference: t.reference_number,
+          expectedResidentId: t.matched_resident_id,
+          expectedConfidence: t.match_score
         })),
-        createdAt: new Date()
+        created_at: new Date()
       })
     }
 
     // Payment index test suite
     const paymentIndexTransactions = await (db as any).bankMutation.findMany({
       where: {
-        transactionDate: {
-          gte: startDate,
-          lte: endDate
+        transaction_date: {
+          gte: start_date,
+          lte: end_date
         },
         amount: {
           gte: 200000,
           lte: 500000
         }
       },
-      orderBy: { transactionDate: 'desc' },
+      orderBy: { transaction_date: 'desc' },
       take: 20
     })
 
@@ -203,28 +203,28 @@ export class VerificationTestService {
         description: 'Test transactions with potential payment index (Jan-Mar 2025)',
         transactions: paymentIndexTransactions.map((t: any) => ({
           id: t.id,
-          date: t.transactionDate.toISOString(),
+          date: t.transaction_date.toISOString(),
           description: t.description,
           amount: t.amount,
           balance: t.balance,
-          reference: t.referenceNumber
+          reference: t.reference_number
         })),
-        createdAt: new Date()
+        created_at: new Date()
       })
     }
 
     // IPL keywords test suite
     const iplTransactions = await (db as any).bankMutation.findMany({
       where: {
-        transactionDate: {
-          gte: startDate,
-          lte: endDate
+        transaction_date: {
+          gte: start_date,
+          lte: end_date
         },
         description: {
           contains: 'IPL'
         }
       },
-      orderBy: { transactionDate: 'desc' },
+      orderBy: { transaction_date: 'desc' },
       take: 20
     })
 
@@ -235,13 +235,13 @@ export class VerificationTestService {
         description: 'Test transactions with IPL keywords (Jan-Mar 2025)',
         transactions: iplTransactions.map((t: any) => ({
           id: t.id,
-          date: t.transactionDate.toISOString(),
+          date: t.transaction_date.toISOString(),
           description: t.description,
           amount: t.amount,
           balance: t.balance,
-          reference: t.referenceNumber
+          reference: t.reference_number
         })),
-        createdAt: new Date()
+        created_at: new Date()
       })
     }
 
@@ -265,7 +265,7 @@ export class VerificationTestService {
 
     // Get residents for testing
     const residents = await db.resident.findMany({
-      where: { isActive: true }
+      where: { is_active: true }
     })
 
     // Run tests for each transaction
@@ -320,7 +320,7 @@ export class VerificationTestService {
         recall,
         f1Score
       },
-      createdAt: new Date()
+      created_at: new Date()
     }
   }
 
@@ -348,8 +348,8 @@ export class VerificationTestService {
 
       // Check if the result matches expectations
       const match = transaction.expectedResidentId 
-        ? result.residentId === transaction.expectedResidentId
-        : !result.residentId
+        ? result.resident_id === transaction.expectedResidentId
+        : !result.resident_id
       
       const confidenceMatch = transaction.expectedConfidence !== undefined
         ? Math.abs((result.confidence || 0) - transaction.expectedConfidence) < 0.1
@@ -357,7 +357,7 @@ export class VerificationTestService {
 
       return {
         transactionId: transaction.id,
-        actualResidentId: result.residentId,
+        actualResidentId: result.resident_id,
         actualConfidence: result.confidence,
         expectedResidentId: transaction.expectedResidentId,
         expectedConfidence: transaction.expectedConfidence,

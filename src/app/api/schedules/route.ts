@@ -5,9 +5,9 @@ import { z } from 'zod'
 const createScheduleSchema = z.object({
   name: z.string().min(1, 'Nama jadwal harus diisi'),
   description: z.string().optional(),
-  startDate: z.string().min(1, 'Tanggal mulai harus diisi'),
-  endDate: z.string().min(1, 'Tanggal selesai harus diisi'),
-  periodId: z.string().min(1, 'Periode harus dipilih'),
+  start_date: z.string().min(1, 'Tanggal mulai harus diisi'),
+  end_date: z.string().min(1, 'Tanggal selesai harus diisi'),
+  period_id: z.string().min(1, 'Periode harus dipilih'),
 })
 
 export async function GET(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       db.paymentSchedule.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         include: {
           period: {
             select: {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
               amount: true
             }
           },
-          createdBy: {
+          created_by: {
             select: {
               id: true,
               name: true,
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Check if period exists
     const period = await db.paymentPeriod.findUnique({
-      where: { id: validatedData.periodId }
+      where: { id: validatedData.period_id }
     })
 
     if (!period) {
@@ -86,9 +86,9 @@ export async function POST(request: NextRequest) {
     const schedule = await db.paymentSchedule.create({
       data: {
         ...validatedData,
-        startDate: new Date(validatedData.startDate),
-        endDate: new Date(validatedData.endDate),
-        createdById: userId,
+        start_date: new Date(validatedData.start_date),
+        end_date: new Date(validatedData.end_date),
+        created_by_id: userId,
       },
       include: {
         period: {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
             amount: true
           }
         },
-        createdBy: {
+        created_by: {
           select: {
             id: true,
             name: true,
@@ -130,9 +130,9 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const scheduleId = searchParams.get('id')
+    const schedule_id = searchParams.get('id')
     
-    if (!scheduleId) {
+    if (!schedule_id) {
       return NextResponse.json(
         { error: 'ID jadwal harus disertakan' },
         { status: 400 }
@@ -141,7 +141,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check if schedule exists
     const schedule = await db.paymentSchedule.findUnique({
-      where: { id: scheduleId }
+      where: { id: schedule_id }
     })
 
     if (!schedule) {
@@ -153,12 +153,12 @@ export async function DELETE(request: NextRequest) {
 
     // Delete all schedule items associated with this schedule
     await db.paymentScheduleItem.deleteMany({
-      where: { scheduleId }
+      where: { schedule_id }
     })
 
     // Delete the schedule
     await db.paymentSchedule.delete({
-      where: { id: scheduleId }
+      where: { id: schedule_id }
     })
 
     return NextResponse.json({

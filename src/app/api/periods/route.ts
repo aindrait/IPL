@@ -7,7 +7,7 @@ const createPeriodSchema = z.object({
   month: z.number().min(1, 'Bulan harus diisi').max(12, 'Bulan tidak valid'),
   year: z.number().min(2020, 'Tahun tidak valid'),
   amount: z.number().min(1, 'Jumlah iuran harus lebih dari 0'),
-  dueDate: z.string().min(1, 'Tanggal jatuh tempo harus diisi'),
+  due_date: z.string().min(1, 'Tanggal jatuh tempo harus diisi'),
 })
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
     if (activeOnly) {
-      where.isActive = true
+      where.is_active = true
     }
 
     const periods = await db.paymentPeriod.findMany({
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            scheduleItems: true
+            schedule_items: true
           }
         }
       }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const period = await db.paymentPeriod.create({
       data: {
         ...validatedData,
-        dueDate: new Date(validatedData.dueDate),
+        due_date: new Date(validatedData.due_date),
       }
     })
 

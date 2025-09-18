@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 
 interface PaymentSettings {
   defaultAmount: number
-  dueDate: number
+  due_date: number
   rwSettings: {
     activeRWs: number[]
     defaultRW: number
@@ -17,7 +17,7 @@ interface PaymentSettings {
 
 const defaultSettings: PaymentSettings = {
   defaultAmount: parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "250000").split(',')[0], 10) || 250000,
-  dueDate: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
+  due_date: parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5,
   rwSettings: {
     activeRWs: [12],
     defaultRW: 12
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Default amount harus berupa angka positif' }, { status: 400 })
       }
       
-      if (typeof paymentSettings.dueDate !== 'number' || paymentSettings.dueDate < 1 || paymentSettings.dueDate > 31) {
+      if (typeof paymentSettings.due_date !== 'number' || paymentSettings.due_date < 1 || paymentSettings.due_date > 31) {
         return NextResponse.json({ error: 'Due date harus antara 1 dan 31' }, { status: 400 })
       }
       

@@ -42,8 +42,8 @@ export interface RuleAction {
 }
 
 export interface MatchingResult {
-  residentId?: string
-  paymentId?: string
+  resident_id?: string
+  payment_id?: string
   confidence: number
   strategy: string
   factors: string[]
@@ -77,10 +77,10 @@ export class RuleBasedMatchingEngine {
 
     // Initialize helper components
     const residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       include: {
         bankAliases: {
-          where: { isVerified: true },
+          where: { is_verified: true },
           orderBy: { frequency: 'desc' }
         }
       }
@@ -312,7 +312,7 @@ export class RuleBasedMatchingEngine {
     try {
       // Try to load custom rules from database if the table exists
       const customRules = await (db as any).verificationRule.findMany({
-        where: { isActive: true },
+        where: { is_active: true },
         orderBy: { priority: 'asc' }
       })
 
@@ -328,7 +328,7 @@ export class RuleBasedMatchingEngine {
             action: JSON.parse(rule.action || '{}'),
             confidence: rule.confidence || 0.5,
             tags: [],
-            lastModified: rule.updatedAt
+            lastModified: rule.updated_at
           }
 
           this.addRule(parsedRule)
@@ -528,13 +528,13 @@ export class RuleBasedMatchingEngine {
   }
 
   private evaluateDateRangeCondition(node: RuleConditionNode, transaction: any, currentDate: Date): boolean {
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const { daysBefore = 7, daysAfter = 7 } = node.value
     
     const minDate = new Date(currentDate.getTime() - daysBefore * 24 * 60 * 60 * 1000)
     const maxDate = new Date(currentDate.getTime() + daysAfter * 24 * 60 * 60 * 1000)
     
-    return transactionDate >= minDate && transactionDate <= maxDate
+    return transaction_date >= minDate && transaction_date <= maxDate
   }
 
   private evaluateNameCondition(node: RuleConditionNode, transaction: any): boolean {
@@ -609,23 +609,23 @@ export class RuleBasedMatchingEngine {
     const { transaction, residents } = context
     const { strategy } = rule.action.parameters
 
-    let residentId: string | undefined
-    let paymentId: string | undefined
+    let resident_id: string | undefined
+    let payment_id: string | undefined
     const factors: string[] = []
 
     switch (strategy) {
       case 'PAYMENT_INDEX':
-        const paymentIndex = this.extractPaymentIndex(transaction.amount)
-        if (paymentIndex) {
-          const resident = residents.find(r => r.paymentIndex === paymentIndex)
+        const payment_index = this.extractPaymentIndex(transaction.amount)
+        if (payment_index) {
+          const resident = residents.find(r => r.payment_index === payment_index)
           if (resident) {
-            residentId = resident.id
-            factors.push(`Payment index match: ${paymentIndex}`)
+            resident_id = resident.id
+            factors.push(`Payment index match: ${payment_index}`)
             
             // Try to find matching payment
             const payment = await this.findMatchingPayment(resident.id, transaction)
             if (payment) {
-              paymentId = payment
+              payment_id = payment
             }
           }
         }
@@ -636,8 +636,8 @@ export class RuleBasedMatchingEngine {
         for (const resident of residents) {
           const payment = await this.findMatchingPayment(resident.id, transaction)
           if (payment) {
-            residentId = resident.id
-            paymentId = payment
+            resident_id = resident.id
+            payment_id = payment
             factors.push(`Exact amount match: ${transaction.amount}`)
             break
           }
@@ -648,14 +648,14 @@ export class RuleBasedMatchingEngine {
         if (this.fuzzyNameMatcher) {
           const nameMatch = this.fuzzyNameMatcher.findBestResidentMatch(transaction.description)
           if (nameMatch) {
-            residentId = nameMatch.resident.id
+            resident_id = nameMatch.resident.id
             factors.push(`Name match: ${nameMatch.matchedValue} (${Math.round(nameMatch.score * 100)}%)`)
             
             // Try to find matching payment
-            if (residentId) {
-              const payment = await this.findMatchingPayment(residentId, transaction)
+            if (resident_id) {
+              const payment = await this.findMatchingPayment(resident_id, transaction)
               if (payment) {
-                paymentId = payment
+                payment_id = payment
               }
             }
           }
@@ -665,14 +665,14 @@ export class RuleBasedMatchingEngine {
       case 'ADDRESS_PATTERN':
         if (this.addressPatternMatcher) {
           const addressMatch = this.addressPatternMatcher.matchAddress(transaction.description, residents)
-          if (addressMatch.residentId) {
-            residentId = addressMatch.residentId
+          if (addressMatch.resident_id) {
+            resident_id = addressMatch.resident_id
             factors.push(...addressMatch.factors)
             
             // Try to find matching payment
-            const payment = await this.findMatchingPayment(residentId, transaction)
+            const payment = await this.findMatchingPayment(resident_id, transaction)
             if (payment) {
-              paymentId = payment
+              payment_id = payment
             }
           }
         }
@@ -682,13 +682,13 @@ export class RuleBasedMatchingEngine {
         return null
     }
 
-    if (!residentId) {
+    if (!resident_id) {
       return null
     }
 
     return {
-      residentId,
-      paymentId,
+      resident_id,
+      payment_id,
       confidence: rule.action.parameters.confidence || rule.confidence,
       strategy,
       factors,
@@ -751,19 +751,19 @@ export class RuleBasedMatchingEngine {
     return null
   }
 
-  private async findMatchingPayment(residentId: string, transaction: any): Promise<string | null> {
-    const transactionDate = new Date(transaction.date)
+  private async findMatchingPayment(resident_id: string, transaction: any): Promise<string | null> {
+    const transaction_date = new Date(transaction.date)
     
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId,
+        resident_id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
     
     return matchingPayment?.id || null

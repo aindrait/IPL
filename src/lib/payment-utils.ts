@@ -2,11 +2,11 @@
  * Generate a payment index from BLOK and house number
  * Example: C11/9 becomes 119
  * @param blok - The BLOK identifier (e.g., "C11")
- * @param houseNumber - The house number (e.g., "9")
+ * @param house_number - The house number (e.g., "9")
  * @returns The generated payment index as a number
  */
-export function generatePaymentIndex(blok: string, houseNumber: string): number {
-  if (!blok || !houseNumber) {
+export function generatePaymentIndex(blok: string, house_number: string): number {
+  if (!blok || !house_number) {
     throw new Error('BLOK and house number are required');
   }
 
@@ -15,7 +15,7 @@ export function generatePaymentIndex(blok: string, houseNumber: string): number 
   const blokNum = parseInt(blokNumbers, 10) || 0;
   
   // Parse house number
-  const houseNum = parseInt(houseNumber, 10) || 0;
+  const houseNum = parseInt(house_number, 10) || 0;
   
   // Combine to create payment index - blok number * 1000 + house number
   // This ensures C4 and 5 becomes 4 * 1000 + 5 = 4005, and C4 and 6 becomes 4 * 1000 + 6 = 4006
@@ -108,12 +108,12 @@ export function validatePaymentAmount(
  * Format BLOK and house number for display
  * Example: "C11" and "9" becomes "C11/9"
  * @param blok - The BLOK identifier
- * @param houseNumber - The house number
+ * @param house_number - The house number
  * @returns Formatted BLOK and house number
  */
-export function formatBlokAndHouseNumber(blok: string, houseNumber: string): string {
-  if (!blok || !houseNumber) {
+export function formatBlokAndHouseNumber(blok: string, house_number: string): string {
+  if (!blok || !house_number) {
     return '';
   }
-  return `${blok}/${houseNumber}`;
+  return `${blok}/${house_number}`;
 }

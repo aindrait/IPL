@@ -7,9 +7,9 @@ export async function POST(
 ) {
   try {
     const body = await request.json()
-    const { residentId, paymentId, verified } = body
+    const { resident_id, payment_id, verified } = body
 
-    if (!residentId) {
+    if (!resident_id) {
       return NextResponse.json({ error: 'Resident ID is required' }, { status: 400 })
     }
 
@@ -24,18 +24,18 @@ export async function POST(
 
     // Check if resident exists
     const resident = await db.resident.findUnique({
-      where: { id: residentId }
+      where: { id: resident_id }
     })
 
     if (!resident) {
       return NextResponse.json({ error: 'Resident not found' }, { status: 404 })
     }
 
-    // If paymentId is provided, check if payment exists
+    // If payment_id is provided, check if payment exists
     let payment: any = null
-    if (paymentId) {
+    if (payment_id) {
       payment = await db.payment.findUnique({
-        where: { id: paymentId }
+        where: { id: payment_id }
       })
 
       if (!payment) {
@@ -43,7 +43,7 @@ export async function POST(
       }
 
       // Verify payment belongs to the resident
-      if (payment.residentId !== residentId) {
+      if (payment.resident_id !== resident_id) {
         return NextResponse.json({
           error: 'Payment does not belong to the specified resident'
         }, { status: 400 })
@@ -51,33 +51,33 @@ export async function POST(
     }
 
     // Store previous match data for verification history
-    const previousMatchedPaymentId = mutation.matchedPaymentId
-    const previousMatchedResidentId = mutation.matchedResidentId
+    const previous_matched_payment_id = mutation.matched_payment_id
+    const previousMatchedResidentId = mutation.matched_resident_id
 
     // Update the mutation with manual match
     const updatedMutation = await db.bankMutation.update({
       where: { id: params.id },
       data: {
-        matchedResidentId: residentId,
-        matchedPaymentId: paymentId,
-        matchScore: 1.0, // Manual match gets perfect score
-        matchingStrategy: 'MANUAL_MATCH',
-        isVerified: Boolean(verified),
-        verifiedAt: verified ? new Date() : null,
-        verifiedBy: verified ? 'USER' : null
+        matched_resident_id: resident_id,
+        matched_payment_id: payment_id,
+        match_score: 1.0, // Manual match gets perfect score
+        matching_strategy: 'MANUAL_MATCH',
+        is_verified: Boolean(verified),
+        verified_at: verified ? new Date() : null,
+        verified_by: verified ? 'USER' : null
       }
     })
 
     // Create verification history record
     await db.bankMutationVerification.create({
       data: {
-        mutationId: params.id,
+        mutation_id: params.id,
         action: verified ? 'MANUAL_CONFIRM' : 'MANUAL_OVERRIDE',
-        notes: `Manual match to resident ${resident.name}${payment ? ` and payment ${paymentId}` : ''}`,
-        verifiedBy: 'USER',
+        notes: `Manual match to resident ${resident.name}${payment ? ` and payment ${payment_id}` : ''}`,
+        verified_by: 'USER',
         confidence: 1.0,
-        previousMatchedPaymentId,
-        newMatchedPaymentId: paymentId
+        previous_matched_payment_id,
+        new_matched_payment_id: payment_id
       }
     })
 

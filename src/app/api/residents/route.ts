@@ -11,10 +11,10 @@ const createResidentSchema = z.object({
   rt: z.number().min(1, 'RT harus diisi').max(20, 'RT maksimal 20'),
   rw: z.number().min(1, 'RW harus diisi').max(20, 'RW maksimal 20'),
   blok: z.string().min(1, 'BLOK harus diisi').optional(),
-  houseNumber: z.string().min(1, 'Nomor rumah harus diisi').optional(),
-  paymentIndex: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
+  house_number: z.string().min(1, 'Nomor rumah harus diisi').optional(),
+  payment_index: z.number().min(1, 'Index pembayaran harus lebih dari 0').optional(),
   ownership: z.enum(['MILIK', 'SEWA']).optional().nullable(),
-  rtId: z.string().optional().nullable(),
+  rt_id: z.string().optional().nullable(),
 })
 
 export async function GET(request: NextRequest) {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     const where: any = {
-      isActive: true,
+      is_active: true,
     }
 
     if (search) {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         { address: { contains: search } },
         { phone: { contains: search } },
         { blok: { contains: search } },
-        { houseNumber: { contains: search } },
+        { house_number: { contains: search } },
       ]
     }
 
@@ -85,10 +85,10 @@ export async function GET(request: NextRequest) {
       db.resident.findMany({
         where,
         include: {
-          createdBy: {
+          created_by: {
             select: { id: true, name: true, email: true }
           },
-          rtRelation: {
+          rt_relation: {
             select: { id: true, chairman: true }
           },
           _count: {
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        orderBy: { paymentIndex: 'asc' },
+        orderBy: { payment_index: 'asc' },
         skip,
         take: limit,
       }),
@@ -154,16 +154,16 @@ export async function POST(request: NextRequest) {
 
     const data = validatedData.data
 
-    // If rtId provided, sync rt & rw from RT table
+    // If rt_id provided, sync rt & rw from RT table
     let rtNumber = data.rt
     let rwNumber = data.rw
-    let rtId: string | null = data.rtId || null
+    let rt_id: string | null = data.rt_id || null
 
-    if (rtId) {
-      const rt = await db.rT.findUnique({ where: { id: rtId } })
+    if (rt_id) {
+      const rt = await db.rT.findUnique({ where: { id: rt_id } })
       if (!rt) {
         return NextResponse.json(
-          { error: 'RT tidak ditemukan', details: `ID RT ${rtId} tidak terdaftar dalam sistem` },
+          { error: 'RT tidak ditemukan', details: `ID RT ${rt_id} tidak terdaftar dalam sistem` },
           { status: 404 }
         )
       }
@@ -184,22 +184,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle payment index
-    let paymentIndex: number | undefined = data.paymentIndex
+    let payment_index: number | undefined = data.payment_index
     
     // Only generate payment index if not explicitly provided and BLOK and house number are provided
-    if (!paymentIndex && data.blok && data.houseNumber) {
+    if (!payment_index && data.blok && data.house_number) {
       try {
-        paymentIndex = generatePaymentIndex(data.blok, data.houseNumber)
+        payment_index = generatePaymentIndex(data.blok, data.house_number)
         
         // Check if payment index already exists
         // Using raw query since Prisma client might not be updated
         const existingPaymentIndex = await db.$queryRaw`
-          SELECT id FROM residents WHERE "paymentIndex" = ${paymentIndex} LIMIT 1
+          SELECT id FROM residents WHERE payment_index = ${payment_index} LIMIT 1
         ` as any[]
 
         if (existingPaymentIndex && existingPaymentIndex.length > 0) {
           return NextResponse.json(
-            { error: 'Index pembayaran sudah terdaftar', details: `Kombinasi BLOK ${data.blok} dan nomor rumah ${data.houseNumber} sudah terdaftar` },
+            { error: 'Index pembayaran sudah terdaftar', details: `Kombinasi BLOK ${data.blok} dan nomor rumah ${data.house_number} sudah terdaftar` },
             { status: 409 }
           )
         }
@@ -212,14 +212,14 @@ export async function POST(request: NextRequest) {
     }
     
     // If payment index is explicitly provided, check if it already exists
-    if (paymentIndex) {
+    if (payment_index) {
       const existingPaymentIndex = await db.$queryRaw`
-        SELECT id FROM residents WHERE "paymentIndex" = ${paymentIndex} LIMIT 1
+        SELECT id FROM residents WHERE payment_index = ${payment_index} LIMIT 1
       ` as any[]
 
       if (existingPaymentIndex && existingPaymentIndex.length > 0) {
         return NextResponse.json(
-          { error: 'Index pembayaran sudah terdaftar', details: `Index pembayaran ${paymentIndex} sudah digunakan oleh warga lain` },
+          { error: 'Index pembayaran sudah terdaftar', details: `Index pembayaran ${payment_index} sudah digunakan oleh warga lain` },
           { status: 409 }
         )
       }
@@ -251,20 +251,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Use raw SQL to create resident since Prisma client might not be updated
-    const resident = await db.$queryRaw`
+    const ownershipValue = data.ownership ? `'${data.ownership}'::"HouseOwnership"` : 'NULL';
+    const resident = await db.$queryRawUnsafe(`
       INSERT INTO residents (
-        id, name, address, phone, email, rt, rw, blok, "houseNumber", "paymentIndex", ownership,
-        "isActive", "createdAt", "updatedAt", "createdById", "rtId"
+        id, name, address, phone, email, rt, rw, blok, house_number, payment_index, ownership,
+        is_active, created_at, updated_at, created_by_id, rt_id
       ) VALUES (
         gen_random_uuid(),
-        ${data.name}, ${data.address}, ${data.phone},
-        ${data.email === '' ? null : data.email || null}, ${rtNumber}, ${rwNumber},
-        ${data.blok || null}, ${data.houseNumber || null},
-        ${paymentIndex || null}, ${data.ownership ? `'${data.ownership}'::"HouseOwnership"` : null}, 1, NOW(), NOW(), ${systemUser.id}, ${rtId}
+        $1, $2, $3,
+        $4, $5, $6,
+        $7, $8,
+        $9, ${ownershipValue}, true, NOW(), NOW(), $10, $11
       )
-      RETURNING id, name, address, phone, email, rt, rw, blok, "houseNumber", "paymentIndex", ownership,
-      "isActive", "createdAt", "updatedAt", "createdById", "rtId"
-    ` as any[]
+      RETURNING id, name, address, phone, email, rt, rw, blok, house_number, payment_index, ownership,
+      is_active, created_at, updated_at, created_by_id, rt_id
+    `, data.name, data.address, data.phone, data.email === '' ? null : data.email || null, rtNumber, rwNumber, data.blok || null, data.house_number || null, payment_index || null, systemUser.id, rt_id) as any[]
 
     // Get the created resident
     const createdResident = resident[0]

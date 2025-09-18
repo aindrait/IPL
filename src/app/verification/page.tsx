@@ -37,10 +37,10 @@ import {
 interface PendingPayment {
   id: string
   amount: number
-  paymentDate: string
-  paymentMethod?: string
+  payment_date: string
+  payment_method?: string
   notes?: string
-  createdAt: string
+  created_at: string
   status: string
   resident: {
     id: string
@@ -48,18 +48,18 @@ interface PendingPayment {
     rt: number
     rw: number
     blok?: string
-    houseNumber?: string
+    house_number?: string
     address: string
     phone?: string
   }
-  scheduleItems: Array<{
+  schedule_items: Array<{
     id: string
     type: string
     label?: string
     status: string
     amount: number
     originalAmount: number
-    dueDate: string
+    due_date: string
     notes?: string
     isAmountEdited: boolean
     period: {
@@ -67,7 +67,7 @@ interface PendingPayment {
       month: number
       year: number
       amount: number
-      dueDate: string
+      due_date: string
     }
   }>
   periods: Array<{
@@ -79,11 +79,11 @@ interface PendingPayment {
   proofs: Array<{
     id: string
     filename: string
-    filePath: string
-    fileSize: number
-    mimeType: string
+    file_path: string
+    file_size: number
+    mime_type: string
     analyzed: boolean
-    analysisResult?: string
+    analysis_result?: string
     uploadedAt: string
   }>
   submittedBy: string
@@ -96,7 +96,7 @@ interface PendingPayment {
 }
 
 interface VerificationData {
-  paymentId: string
+  payment_id: string
   action: 'approve' | 'reject'
   adminNotes: string
   verificationMethod: 'MANUAL_CHECK' | 'BANK_STATEMENT' | 'TRANSFER_PROOF'
@@ -104,24 +104,24 @@ interface VerificationData {
     bankAccount?: string
     transferAmount?: number
     transferDate?: string
-    referenceNumber?: string
+    reference_number?: string
   }
 }
 
 interface BankMutation {
   id: string
-  transactionDate: string
+  transaction_date: string
   description: string
   amount: number
-  transactionType?: 'CR' | 'DB' | null
+  transaction_type?: 'CR' | 'DB' | null
   category?: string | null
-  isOmitted: boolean
-  omitReason?: string | null
-  isVerified: boolean
-  matchedResidentId?: string | null
-  matchedPaymentId?: string | null
-  matchScore?: number | null
-  matchingStrategy?: string | null
+  is_omitted: boolean
+  omit_reason?: string | null
+  is_verified: boolean
+  matched_resident_id?: string | null
+  matched_payment_id?: string | null
+  match_score?: number | null
+  matching_strategy?: string | null
 }
 
 export default function VerificationPage() {
@@ -155,8 +155,8 @@ export default function VerificationPage() {
   })
 
   // Verification form state
-  const [verificationData, setVerificationData] = useState<VerificationData>({
-    paymentId: '',
+  const [verification_data, setVerificationData] = useState<VerificationData>({
+    payment_id: '',
     action: 'approve',
     adminNotes: '',
     verificationMethod: 'MANUAL_CHECK',
@@ -245,13 +245,13 @@ export default function VerificationPage() {
   const openVerificationDialog = (payment: PendingPayment, action: 'approve' | 'reject') => {
     setSelectedPayment(payment)
     setVerificationData({
-      paymentId: payment.id,
+      payment_id: payment.id,
       action,
       adminNotes: '',
       verificationMethod: 'MANUAL_CHECK',
       verificationDetails: {
         transferAmount: payment.amount,
-        transferDate: payment.paymentDate
+        transferDate: payment.payment_date
       }
     })
     setVerificationDialog(true)
@@ -261,19 +261,19 @@ export default function VerificationPage() {
     // Find bank mutations that match this payment
     const matchingMutations = bankMutations.filter(mutation => {
       // Match by resident ID if available
-      if (mutation.matchedResidentId === payment.resident.id) {
+      if (mutation.matched_resident_id === payment.resident.id) {
         return true
       }
       
       // Match by amount and date (within 7 days)
-      const paymentDate = new Date(payment.paymentDate)
-      const mutationDate = new Date(mutation.transactionDate)
-      const dateDiff = Math.abs(paymentDate.getTime() - mutationDate.getTime()) / (1000 * 60 * 60 * 24)
+      const payment_date = new Date(payment.payment_date)
+      const mutationDate = new Date(mutation.transaction_date)
+      const dateDiff = Math.abs(payment_date.getTime() - mutationDate.getTime()) / (1000 * 60 * 60 * 24)
       
       return (
         Math.abs(mutation.amount - payment.amount) < 100 && // Amount within 100 IDR
         dateDiff <= 7 && // Within 7 days
-        !mutation.matchedPaymentId // Not already matched
+        !mutation.matched_payment_id // Not already matched
       )
     })
     
@@ -288,7 +288,7 @@ export default function VerificationPage() {
       const response = await fetch('/api/payments/verify-manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(verificationData)
+        body: JSON.stringify(verification_data)
       })
 
       const result = await response.json()
@@ -631,8 +631,8 @@ export default function VerificationPage() {
                       <div>
                         <p className="font-medium">{payment.resident.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {payment.resident.blok && payment.resident.houseNumber ? 
-                            `${payment.resident.blok}${payment.resident.houseNumber}` : 
+                          {payment.resident.blok && payment.resident.house_number ? 
+                            `${payment.resident.blok}${payment.resident.house_number}` : 
                             payment.resident.address
                           } • RT {payment.resident.rt}/RW {payment.resident.rw}
                         </p>
@@ -755,12 +755,12 @@ export default function VerificationPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {verificationData.action === 'approve' ? (
+              {verification_data.action === 'approve' ? (
                 <CheckCircle className="h-5 w-5 text-green-600" />
               ) : (
                 <XCircle className="h-5 w-5 text-red-600" />
               )}
-              {verificationData.action === 'approve' ? 'Approve' : 'Reject'} Payment
+              {verification_data.action === 'approve' ? 'Approve' : 'Reject'} Payment
             </DialogTitle>
           </DialogHeader>
           
@@ -777,10 +777,10 @@ export default function VerificationPage() {
                       <strong>Amount:</strong> {formatCurrency(selectedPayment.amount)}
                     </div>
                     <div>
-                      <strong>Payment Date:</strong> {selectedPayment.paymentDate}
+                      <strong>Payment Date:</strong> {selectedPayment.payment_date}
                     </div>
                     <div>
-                      <strong>Method:</strong> {selectedPayment.paymentMethod || 'Not specified'}
+                      <strong>Method:</strong> {selectedPayment.payment_method || 'Not specified'}
                     </div>
                   </div>
                 </AlertDescription>
@@ -790,7 +790,7 @@ export default function VerificationPage() {
               <div>
                 <Label>Verification Method</Label>
                 <Select 
-                  value={verificationData.verificationMethod}
+                  value={verification_data.verificationMethod}
                   onValueChange={(value: 'MANUAL_CHECK' | 'BANK_STATEMENT' | 'TRANSFER_PROOF') => setVerificationData(prev => ({...prev, verificationMethod: value}))}
                 >
                   <SelectTrigger>
@@ -805,12 +805,12 @@ export default function VerificationPage() {
               </div>
 
               {/* Verification Details */}
-              {verificationData.verificationMethod !== 'MANUAL_CHECK' && (
+              {verification_data.verificationMethod !== 'MANUAL_CHECK' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Bank Account</Label>
                     <Input 
-                      value={verificationData.verificationDetails.bankAccount || ''}
+                      value={verification_data.verificationDetails.bankAccount || ''}
                       onChange={(e) => setVerificationData(prev => ({
                         ...prev, 
                         verificationDetails: {...prev.verificationDetails, bankAccount: e.target.value}
@@ -821,10 +821,10 @@ export default function VerificationPage() {
                   <div>
                     <Label>Reference Number</Label>
                     <Input 
-                      value={verificationData.verificationDetails.referenceNumber || ''}
+                      value={verification_data.verificationDetails.reference_number || ''}
                       onChange={(e) => setVerificationData(prev => ({
                         ...prev, 
-                        verificationDetails: {...prev.verificationDetails, referenceNumber: e.target.value}
+                        verificationDetails: {...prev.verificationDetails, reference_number: e.target.value}
                       }))}
                       placeholder="Transfer reference"
                     />
@@ -836,7 +836,7 @@ export default function VerificationPage() {
               <div>
                 <Label>Admin Notes</Label>
                 <Textarea 
-                  value={verificationData.adminNotes}
+                  value={verification_data.adminNotes}
                   onChange={(e) => setVerificationData(prev => ({...prev, adminNotes: e.target.value}))}
                   placeholder="Add verification notes..."
                   rows={3}
@@ -851,9 +851,9 @@ export default function VerificationPage() {
                     {selectedPayment.proofs.map((proof) => (
                       <div key={proof.id} className="border rounded p-2 text-sm">
                         <p className="font-medium truncate">{proof.filename}</p>
-                        <p className="text-muted-foreground">{formatFileSize(proof.fileSize)}</p>
-                        {proof.analyzed && proof.analysisResult && (
-                          <p className="text-xs text-blue-600 mt-1">AI: {proof.analysisResult}</p>
+                        <p className="text-muted-foreground">{formatFileSize(proof.file_size)}</p>
+                        {proof.analyzed && proof.analysis_result && (
+                          <p className="text-xs text-blue-600 mt-1">AI: {proof.analysis_result}</p>
                         )}
                       </div>
                     ))}
@@ -869,11 +869,11 @@ export default function VerificationPage() {
                 <Button 
                   onClick={handleVerification}
                   disabled={verifying}
-                  className={verificationData.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  variant={verificationData.action === 'approve' ? 'default' : 'destructive'}
+                  className={verification_data.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
+                  variant={verification_data.action === 'approve' ? 'default' : 'destructive'}
                 >
                   {verifying ? 'Processing...' : (
-                    verificationData.action === 'approve' ? 'Approve Payment' : 'Reject Payment'
+                    verification_data.action === 'approve' ? 'Approve Payment' : 'Reject Payment'
                   )}
                 </Button>
               </div>
@@ -905,15 +905,15 @@ export default function VerificationPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Payment Date:</span>
-                      <span>{selectedPayment.paymentDate}</span>
+                      <span>{selectedPayment.payment_date}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Method:</span>
-                      <span>{selectedPayment.paymentMethod || 'Not specified'}</span>
+                      <span>{selectedPayment.payment_method || 'Not specified'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Submitted:</span>
-                      <span>{new Date(selectedPayment.createdAt).toLocaleDateString('id-ID')}</span>
+                      <span>{new Date(selectedPayment.created_at).toLocaleDateString('id-ID')}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Days Waiting:</span>
@@ -934,8 +934,8 @@ export default function VerificationPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Address:</span>
                       <span>
-                        {selectedPayment.resident.blok && selectedPayment.resident.houseNumber ? 
-                          `${selectedPayment.resident.blok}${selectedPayment.resident.houseNumber}` : 
+                        {selectedPayment.resident.blok && selectedPayment.resident.house_number ? 
+                          `${selectedPayment.resident.blok}${selectedPayment.resident.house_number}` : 
                           selectedPayment.resident.address
                         }
                       </span>
@@ -958,7 +958,8 @@ export default function VerificationPage() {
               <div>
                 <h3 className="font-semibold mb-3">Schedule Items</h3>
                 <div className="space-y-3">
-                  {selectedPayment.scheduleItems.map((item) => (
+                  {selectedPayment.schedule_items && selectedPayment.schedule_items.length > 0 ? (
+                    selectedPayment.schedule_items.map((item) => (
                     <div key={item.id} className="border rounded-lg p-4 bg-gray-50">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Period & Type */}
@@ -1009,7 +1010,12 @@ export default function VerificationPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No schedule items found for this payment.</p>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Amount Summary */}
@@ -1058,7 +1064,7 @@ export default function VerificationPage() {
                   <div className="space-y-4">
                     {selectedPayment.proofs.map((proof) => {
                       const isExpanded = expandedProofs.has(proof.id)
-                      const isImage = proof.mimeType?.startsWith('image/')
+                      const isImage = proof.mime_type?.startsWith('image/')
                       
                       return (
                         <div key={proof.id} className="border rounded-lg overflow-hidden">
@@ -1074,7 +1080,7 @@ export default function VerificationPage() {
                                   <div className="text-left">
                                     <p className="text-sm font-medium">{proof.filename}</p>
                                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                      <span>Size: {formatFileSize(proof.fileSize)}</span>
+                                      <span>Size: {formatFileSize(proof.file_size)}</span>
                                       <span>Uploaded: {new Date(proof.uploadedAt).toLocaleDateString('id-ID')}</span>
                                       {isImage && (
                                         <Badge variant="outline" className="bg-green-50 text-green-700">
@@ -1099,7 +1105,7 @@ export default function VerificationPage() {
                                     {/* Image Preview */}
                                     <div className="bg-white rounded-lg p-2 border">
                                       <img 
-                                        src={proof.filePath || `/uploads/${proof.filename}`}
+                                        src={proof.file_path || `/uploads/${proof.filename}`}
                                         alt={`Payment proof: ${proof.filename}`}
                                         className="max-w-full max-h-96 mx-auto rounded object-contain"
                                         onError={(e) => {
@@ -1127,11 +1133,11 @@ export default function VerificationPage() {
                                     <div className="grid grid-cols-2 gap-4 text-sm">
                                       <div>
                                         <span className="text-muted-foreground">File Type:</span>
-                                        <p className="font-medium">{proof.mimeType}</p>
+                                        <p className="font-medium">{proof.mime_type}</p>
                                       </div>
                                       <div>
                                         <span className="text-muted-foreground">File Size:</span>
-                                        <p className="font-medium">{formatFileSize(proof.fileSize)}</p>
+                                        <p className="font-medium">{formatFileSize(proof.file_size)}</p>
                                       </div>
                                     </div>
                                   </div>
@@ -1143,7 +1149,7 @@ export default function VerificationPage() {
                                         <FileText className="h-5 w-5 text-blue-500" />
                                         <div>
                                           <p className="font-medium">{proof.filename}</p>
-                                          <p className="text-sm text-muted-foreground">{proof.mimeType}</p>
+                                          <p className="text-sm text-muted-foreground">{proof.mime_type}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -1151,13 +1157,13 @@ export default function VerificationPage() {
                                 )}
                                 
                                 {/* AI Analysis Results */}
-                                {proof.analyzed && proof.analysisResult && (
+                                {proof.analyzed && proof.analysis_result && (
                                   <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                     <div className="flex items-center gap-2 mb-2">
                                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                                       <span className="font-medium text-blue-800">AI Analysis Result</span>
                                     </div>
-                                    <p className="text-sm text-blue-700">{proof.analysisResult}</p>
+                                    <p className="text-sm text-blue-700">{proof.analysis_result}</p>
                                   </div>
                                 )}
                                 
@@ -1166,7 +1172,7 @@ export default function VerificationPage() {
                                   <Button 
                                     variant="outline" 
                                     size="sm"
-                                    onClick={() => window.open(proof.filePath || `/uploads/${proof.filename}`, '_blank')}
+                                    onClick={() => window.open(proof.file_path || `/uploads/${proof.filename}`, '_blank')}
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
                                     View Full Size
@@ -1176,7 +1182,7 @@ export default function VerificationPage() {
                                     size="sm"
                                     onClick={() => {
                                       const link = document.createElement('a')
-                                      link.href = proof.filePath || `/uploads/${proof.filename}`
+                                      link.href = proof.file_path || `/uploads/${proof.filename}`
                                       link.download = proof.filename
                                       link.click()
                                     }}
@@ -1208,7 +1214,7 @@ export default function VerificationPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div>
                                 <p className="text-sm text-muted-foreground">Date & Amount</p>
-                                <p className="font-medium">{new Date(mutation.transactionDate).toLocaleDateString('id-ID')}</p>
+                                <p className="font-medium">{new Date(mutation.transaction_date).toLocaleDateString('id-ID')}</p>
                                 <p className="font-medium">{formatCurrency(mutation.amount)}</p>
                               </div>
                               <div>
@@ -1223,10 +1229,10 @@ export default function VerificationPage() {
                               <div>
                                 <p className="text-sm text-muted-foreground">Match Info</p>
                                 <p className="text-sm">
-                                  {mutation.matchScore ? `${Math.round(mutation.matchScore * 100)}%` : 'No score'}
+                                  {mutation.match_score ? `${Math.round(mutation.match_score * 100)}%` : 'No score'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {mutation.matchingStrategy || 'Unknown strategy'}
+                                  {mutation.matching_strategy || 'Unknown strategy'}
                                 </p>
                               </div>
                             </div>

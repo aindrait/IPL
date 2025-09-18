@@ -7,9 +7,9 @@ export async function POST(
 ) {
   try {
     const body = await request.json()
-    const { verifiedBy } = body
+    const { verified_by } = body
 
-    if (!verifiedBy) {
+    if (!verified_by) {
       return NextResponse.json({ error: 'Verified by is required' }, { status: 400 })
     }
 
@@ -23,7 +23,7 @@ export async function POST(
     }
 
     // Check if house number is filled (for UI validation)
-    if (!mutation.matchedResidentId) {
+    if (!mutation.matched_resident_id) {
       return NextResponse.json({ 
         error: 'Resident must be matched before verification' 
       }, { status: 400 })
@@ -31,10 +31,10 @@ export async function POST(
 
     // Get resident details to check house number
     const resident = await db.resident.findUnique({
-      where: { id: mutation.matchedResidentId }
+      where: { id: mutation.matched_resident_id }
     })
 
-    if (!resident || !resident.houseNumber) {
+    if (!resident || !resident.house_number) {
       return NextResponse.json({ 
         error: 'Resident house number is required before verification' 
       }, { status: 400 })
@@ -44,20 +44,20 @@ export async function POST(
     const updatedMutation = await db.bankMutation.update({
       where: { id: params.id },
       data: {
-        isVerified: true,
-        verifiedAt: new Date(),
-        verifiedBy
+        is_verified: true,
+        verified_at: new Date(),
+        verified_by
       }
     })
 
     // Create verification history record
     await db.bankMutationVerification.create({
       data: {
-        mutationId: params.id,
+        mutation_id: params.id,
         action: 'MANUAL_CONFIRM',
-        notes: `Verified by ${verifiedBy}`,
-        verifiedBy,
-        confidence: mutation.matchScore || 1.0
+        notes: `Verified by ${verified_by}`,
+        verified_by,
+        confidence: mutation.match_score || 1.0
       }
     })
 

@@ -122,7 +122,7 @@ export async function POST() {
     const createdResidents = await db.resident.createMany({
       data: sampleResidents.map(r => ({
         ...r,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       }))
     })
 

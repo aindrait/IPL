@@ -37,9 +37,9 @@ export async function POST(
     }
 
     // Check if file exists
-    const filePath = path.join(process.cwd(), 'public', paymentProof.filePath)
+    const file_path = path.join(process.cwd(), 'public', paymentProof.file_path)
     try {
-      await fs.access(filePath)
+      await fs.access(file_path)
     } catch {
       return NextResponse.json(
         { error: 'File not found' },
@@ -48,9 +48,9 @@ export async function POST(
     }
 
     // Read file and convert to base64
-    const fileBuffer = await fs.readFile(filePath)
+    const fileBuffer = await fs.readFile(file_path)
     const base64 = fileBuffer.toString('base64')
-    const mimeType = paymentProof.mimeType
+    const mime_type = paymentProof.mime_type
 
     // Initialize ZAI SDK
     const zai = await ZAI.create()
@@ -63,8 +63,8 @@ export async function POST(
       "senderName": string,
       "recipientName": string,
       "transferDate": string (YYYY-MM-DD format),
-      "bankName": string,
-      "referenceNumber": string,
+      "bank_name": string,
+      "reference_number": string,
       "notes": string,
       "confidence": number (0-1),
       "isTransferProof": boolean
@@ -95,25 +95,25 @@ export async function POST(
       temperature: 0.1, // Low temperature for more consistent results
     })
 
-    let analysisResult
+    let analysis_result
     try {
       const content = completion.choices[0]?.message?.content
       if (content) {
         // Clean the response to ensure it's valid JSON
         const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        analysisResult = JSON.parse(cleanContent)
+        analysis_result = JSON.parse(cleanContent)
       } else {
         throw new Error('No analysis result received')
       }
     } catch (parseError) {
       console.error('Error parsing analysis result:', parseError)
-      analysisResult = {
+      analysis_result = {
         amount: null,
         senderName: null,
         recipientName: null,
         transferDate: null,
-        bankName: null,
-        referenceNumber: null,
+        bank_name: null,
+        reference_number: null,
         notes: 'Failed to parse analysis result',
         confidence: 0,
         isTransferProof: false
@@ -125,33 +125,33 @@ export async function POST(
       where: { id: paymentProofId },
       data: {
         analyzed: true,
-        analysisResult: JSON.stringify(analysisResult)
+        analysis_result: JSON.stringify(analysis_result)
       }
     })
 
     // If analysis is confident and shows valid transfer, suggest auto-verification
     let autoVerifySuggestion: AutoVerifySuggestion | null = null
-    if (analysisResult.isTransferProof && analysisResult.confidence > 0.8) {
+    if (analysis_result.isTransferProof && analysis_result.confidence > 0.8) {
       const expectedAmount = (paymentProof as any).payment?.amount || (paymentProof as any).payment?.totalAmount || null
-      const extractedAmount = analysisResult.amount
+      const extractedAmount = analysis_result.amount
 
       if (extractedAmount && expectedAmount && Math.abs(extractedAmount - expectedAmount) < 1000) { // Allow small difference
         autoVerifySuggestion = {
           action: 'VERIFY',
-          confidence: analysisResult.confidence,
+          confidence: analysis_result.confidence,
           reason: `Amount matches expected IPL payment (${expectedAmount} vs ${extractedAmount})`
         }
       } else if (extractedAmount) {
         autoVerifySuggestion = {
           action: 'REVIEW',
-          confidence: analysisResult.confidence,
+          confidence: analysis_result.confidence,
           reason: `Amount mismatch: expected ${expectedAmount}, found ${extractedAmount}`
         }
       }
     }
 
     return NextResponse.json({
-      analysisResult,
+      analysis_result,
       autoVerifySuggestion,
       paymentProof: {
         id: paymentProof.id,
@@ -169,7 +169,7 @@ export async function POST(
         where: { id: params.id },
         data: {
           analyzed: true,
-          analysisResult: JSON.stringify({
+          analysis_result: JSON.stringify({
             error: error instanceof Error ? error.message : 'Analysis failed',
             confidence: 0,
             isTransferProof: false

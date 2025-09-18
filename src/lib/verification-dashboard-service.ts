@@ -19,7 +19,7 @@ export interface DashboardOverview {
   verificationRate: number
   averageConfidence: number
   totalAmount: number
-  lastUpdated: Date
+  last_updated: Date
 }
 
 export interface VerificationTrend {
@@ -49,10 +49,10 @@ export interface VerificationStats {
     verified: number
   }>
   byResident: Array<{
-    residentId: string
+    resident_id: string
     residentName: string
     blok?: string
-    houseNumber?: string
+    house_number?: string
     transactionCount: number
     totalAmount: number
     averageConfidence: number
@@ -90,7 +90,7 @@ export interface ManagementAction {
   progress: number
   totalItems: number
   processedItems: number
-  createdAt: Date
+  created_at: Date
   completedAt?: Date
   error?: string
   userId: string
@@ -149,24 +149,24 @@ export class VerificationDashboardService {
       lastUploadResult
     ] = await Promise.all([
       (db as any).bankMutation.count(),
-      (db as any).bankMutation.count({ where: { matchedResidentId: { not: null } } }),
-      (db as any).bankMutation.count({ where: { isVerified: true } }),
+      (db as any).bankMutation.count({ where: { matched_resident_id: { not: null } } }),
+      (db as any).bankMutation.count({ where: { is_verified: true } }),
       (db as any).bankMutation.count({ 
         where: { 
-          isVerified: true, 
-          verifiedBy: 'SYSTEM' 
+          is_verified: true, 
+          verified_by: 'SYSTEM' 
         } 
       }),
       (db as any).bankMutation.count({ 
         where: { 
-          isVerified: true, 
-          verifiedBy: { not: 'SYSTEM' } 
+          is_verified: true, 
+          verified_by: { not: 'SYSTEM' } 
         } 
       }),
       (db as any).bankMutation.aggregate({ _sum: { amount: true } }),
       (db as any).bankMutation.findFirst({
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true }
+        orderBy: { created_at: 'desc' },
+        select: { created_at: true }
       })
     ])
 
@@ -175,8 +175,8 @@ export class VerificationDashboardService {
 
     // Calculate average confidence
     const confidenceResult = await (db as any).bankMutation.aggregate({
-      _avg: { matchScore: true },
-      where: { matchedResidentId: { not: null } }
+      _avg: { match_score: true },
+      where: { matched_resident_id: { not: null } }
     })
 
     return {
@@ -186,9 +186,9 @@ export class VerificationDashboardService {
       autoVerifiedTransactions,
       manuallyVerifiedTransactions,
       verificationRate,
-      averageConfidence: confidenceResult._avg.matchScore || 0,
+      averageConfidence: confidenceResult._avg.match_score || 0,
       totalAmount: totalAmountResult._sum.amount || 0,
-      lastUpdated: lastUploadResult?.createdAt || new Date()
+      last_updated: lastUploadResult?.created_at || new Date()
     }
   }
 
@@ -196,14 +196,14 @@ export class VerificationDashboardService {
    * Get verification trends over time
    */
   async getTrends(days: number = 30): Promise<VerificationTrend[]> {
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    const start_date = new Date()
+    start_date.setDate(start_date.getDate() - days)
 
     // Get daily statistics
     const dailyStats = await (db as any).bankMutation.groupBy({
-      by: ['transactionDate'],
+      by: ['transaction_date'],
       where: {
-        transactionDate: { gte: startDate }
+        transaction_date: { gte: start_date }
       },
       _count: {
         id: true
@@ -212,40 +212,40 @@ export class VerificationDashboardService {
         amount: true
       },
       orderBy: {
-        transactionDate: 'asc'
+        transaction_date: 'asc'
       }
     })
 
     // Get matched transactions by date
     const matchedStats = await (db as any).bankMutation.groupBy({
-      by: ['transactionDate'],
+      by: ['transaction_date'],
       where: {
-        transactionDate: { gte: startDate },
-        matchedResidentId: { not: null }
+        transaction_date: { gte: start_date },
+        matched_resident_id: { not: null }
       },
       _count: {
         id: true
       },
       orderBy: {
-        transactionDate: 'asc'
+        transaction_date: 'asc'
       }
     })
 
     // Get verified transactions by date
     const verifiedStats = await (db as any).bankMutation.groupBy({
-      by: ['transactionDate'],
+      by: ['transaction_date'],
       where: {
-        transactionDate: { gte: startDate },
-        isVerified: true
+        transaction_date: { gte: start_date },
+        is_verified: true
       },
       _count: {
         id: true
       },
       _avg: {
-        matchScore: true
+        match_score: true
       },
       orderBy: {
-        transactionDate: 'asc'
+        transaction_date: 'asc'
       }
     })
 
@@ -253,20 +253,20 @@ export class VerificationDashboardService {
     const trends: VerificationTrend[] = []
 
     for (let i = 0; i < days; i++) {
-      const date = new Date(startDate)
+      const date = new Date(start_date)
       date.setDate(date.getDate() + i)
       const dateStr = date.toISOString().split('T')[0]
 
       const daily = dailyStats.find(s => 
-        new Date(s.transactionDate).toISOString().split('T')[0] === dateStr
+        new Date(s.transaction_date).toISOString().split('T')[0] === dateStr
       )
       
       const matched = matchedStats.find(s => 
-        new Date(s.transactionDate).toISOString().split('T')[0] === dateStr
+        new Date(s.transaction_date).toISOString().split('T')[0] === dateStr
       )
       
       const verified = verifiedStats.find(s => 
-        new Date(s.transactionDate).toISOString().split('T')[0] === dateStr
+        new Date(s.transaction_date).toISOString().split('T')[0] === dateStr
       )
 
       trends.push({
@@ -274,7 +274,7 @@ export class VerificationDashboardService {
         uploaded: daily?._count.id || 0,
         matched: matched?._count.id || 0,
         verified: verified?._count.id || 0,
-        confidence: verified?._avg.matchScore || 0
+        confidence: verified?._avg.match_score || 0
       })
     }
 
@@ -287,23 +287,23 @@ export class VerificationDashboardService {
   async getStatistics(): Promise<VerificationStats> {
     // Get statistics by strategy
     const strategyStats = await (db as any).bankMutation.groupBy({
-      by: ['matchingStrategy'],
-      where: { matchedResidentId: { not: null } },
+      by: ['matching_strategy'],
+      where: { matched_resident_id: { not: null } },
       _count: {
         id: true
       },
       _avg: {
-        matchScore: true
+        match_score: true
       }
     })
 
     const totalMatched = strategyStats.reduce((sum: number, stat: any) => sum + stat._count.id, 0)
 
     const byStrategy = strategyStats.map((stat: any) => ({
-      strategy: stat.matchingStrategy || 'UNKNOWN',
+      strategy: stat.matching_strategy || 'UNKNOWN',
       count: stat._count.id,
       percentage: totalMatched > 0 ? (stat._count.id / totalMatched) * 100 : 0,
-      averageConfidence: stat._avg.matchScore || 0
+      averageConfidence: stat._avg.match_score || 0
     }))
 
     // Get statistics by confidence range
@@ -320,7 +320,7 @@ export class VerificationDashboardService {
       confidenceRanges.map(async (range) => {
         const count = await (db as any).bankMutation.count({
           where: {
-            matchScore: { gte: range.min, lt: range.max }
+            match_score: { gte: range.min, lt: range.max }
           }
         })
 
@@ -344,25 +344,25 @@ export class VerificationDashboardService {
     }> = []
 
     for (let month = 1; month <= 12; month++) {
-      const startDate = new Date(currentYear, month - 1, 1)
-      const endDate = new Date(currentYear, month, 0)
+      const start_date = new Date(currentYear, month - 1, 1)
+      const end_date = new Date(currentYear, month, 0)
 
       const [uploaded, matched, verified] = await Promise.all([
         (db as any).bankMutation.count({
           where: {
-            transactionDate: { gte: startDate, lt: endDate }
+            transaction_date: { gte: start_date, lt: end_date }
           }
         }),
         (db as any).bankMutation.count({
           where: {
-            transactionDate: { gte: startDate, lt: endDate },
-            matchedResidentId: { not: null }
+            transaction_date: { gte: start_date, lt: end_date },
+            matched_resident_id: { not: null }
           }
         }),
         (db as any).bankMutation.count({
           where: {
-            transactionDate: { gte: startDate, lt: endDate },
-            isVerified: true
+            transaction_date: { gte: start_date, lt: end_date },
+            is_verified: true
           }
         })
       ])
@@ -382,8 +382,8 @@ export class VerificationDashboardService {
 
     // Get statistics by resident
     const residentStats = await (db as any).bankMutation.groupBy({
-      by: ['matchedResidentId'],
-      where: { matchedResidentId: { not: null } },
+      by: ['matched_resident_id'],
+      where: { matched_resident_id: { not: null } },
       _count: {
         id: true
       },
@@ -391,7 +391,7 @@ export class VerificationDashboardService {
         amount: true
       },
       _avg: {
-        matchScore: true
+        match_score: true
       },
       orderBy: {
         _count: {
@@ -401,23 +401,23 @@ export class VerificationDashboardService {
       take: 20 // Top 20 residents
     })
 
-    const residentIds = residentStats.map((stat: any) => stat.matchedResidentId)
+    const residentIds = residentStats.map((stat: any) => stat.matched_resident_id)
 
     const residents = await db.resident.findMany({
       where: { id: { in: residentIds } }
     })
 
     const byResident = residentStats.map((stat: any) => {
-      const resident = residents.find(r => r.id === stat.matchedResidentId)
+      const resident = residents.find(r => r.id === stat.matched_resident_id)
       
       return {
-        residentId: stat.matchedResidentId,
+        resident_id: stat.matched_resident_id,
         residentName: resident?.name || 'Unknown',
         blok: resident?.blok,
-        houseNumber: resident?.houseNumber,
+        house_number: resident?.house_number,
         transactionCount: stat._count.id,
         totalAmount: stat._sum.amount || 0,
-        averageConfidence: stat._avg.matchScore || 0
+        averageConfidence: stat._avg.match_score || 0
       }
     })
 
@@ -587,7 +587,7 @@ export class VerificationDashboardService {
    * Create a new management action
    */
   async createManagementAction(
-    action: Omit<ManagementAction, 'id' | 'status' | 'progress' | 'createdAt'>
+    action: Omit<ManagementAction, 'id' | 'status' | 'progress' | 'created_at'>
   ): Promise<ManagementAction> {
     // This would create a management action in the database
     // For now, return a placeholder
@@ -595,7 +595,7 @@ export class VerificationDashboardService {
       id: `action_${Date.now()}`,
       status: 'PENDING',
       progress: 0,
-      createdAt: new Date(),
+      created_at: new Date(),
       ...action
     }
   }
@@ -668,8 +668,8 @@ export class VerificationDashboardService {
       const unmatchedTransactions = await (db as any).bankMutation.findMany({
         where: {
           OR: [
-            { matchedResidentId: null },
-            { isVerified: false }
+            { matched_resident_id: null },
+            { is_verified: false }
           ]
         }
       })
@@ -683,24 +683,24 @@ export class VerificationDashboardService {
           // Re-verify the transaction
           const result = await this.verificationEngine.verifyTransaction({
             id: transaction.id,
-            date: transaction.transactionDate.toISOString(),
+            date: transaction.transaction_date.toISOString(),
             description: transaction.description,
             amount: transaction.amount,
             balance: transaction.balance,
-            reference: transaction.referenceNumber
+            reference: transaction.reference_number
           } as any)
 
-          if (result.residentId) {
+          if (result.resident_id) {
             // Update the transaction with new match
             await (db as any).bankMutation.update({
               where: { id: transaction.id },
               data: {
-                matchedResidentId: result.residentId,
-                matchScore: result.confidence,
-                matchingStrategy: result.strategy,
-                isVerified: result.confidence >= 0.8,
-                verifiedAt: result.confidence >= 0.8 ? new Date() : null,
-                verifiedBy: result.confidence >= 0.8 ? 'SYSTEM' : null
+                matched_resident_id: result.resident_id,
+                match_score: result.confidence,
+                matching_strategy: result.strategy,
+                is_verified: result.confidence >= 0.8,
+                verified_at: result.confidence >= 0.8 ? new Date() : null,
+                verified_by: result.confidence >= 0.8 ? 'SYSTEM' : null
               }
             })
 

@@ -21,15 +21,15 @@ export async function POST(
 
     console.log(`[DEBUG] Found mutation with current state:`, {
       id: mutation.id,
-      isOmitted: (mutation as any).isOmitted,
-      isVerified: mutation.isVerified,
-      verifiedBy: mutation.verifiedBy,
-      matchedPaymentId: mutation.matchedPaymentId,
-      matchedResidentId: mutation.matchedResidentId
+      is_omitted: (mutation as any).is_omitted,
+      is_verified: mutation.is_verified,
+      verified_by: mutation.verified_by,
+      matched_payment_id: mutation.matched_payment_id,
+      matched_resident_id: mutation.matched_resident_id
     })
 
-    if (mutation.verifiedBy !== 'OMITTED') {
-      console.log(`[DEBUG] Restore operation failed: Mutation is not omitted (verifiedBy: ${mutation.verifiedBy})`)
+    if (mutation.verified_by !== 'OMITTED') {
+      console.log(`[DEBUG] Restore operation failed: Mutation is not omitted (verified_by: ${mutation.verified_by})`)
       return NextResponse.json({ error: 'Bank mutation is not omitted' }, { status: 400 })
     }
 
@@ -41,15 +41,15 @@ export async function POST(
       const updatedMutation = await tx.bankMutation.update({
         where: { id: params.id },
         data: {
-          isOmitted: false,
-          omitReason: null,
-          isVerified: false,
-          verifiedAt: null,
-          verifiedBy: null,
-          matchedPaymentId: null,
-          matchedResidentId: null,
-          matchScore: null,
-          matchingStrategy: null
+          is_omitted: false,
+          omit_reason: null,
+          is_verified: false,
+          verified_at: null,
+          verified_by: null,
+          matched_payment_id: null,
+          matched_resident_id: null,
+          match_score: null,
+          matching_strategy: null
         } as any
       })
 
@@ -58,10 +58,10 @@ export async function POST(
       // Create verification history record
       await tx.bankMutationVerification.create({
         data: {
-          mutationId: params.id,
+          mutation_id: params.id,
           action: BankVerificationAction.SYSTEM_UNMATCH,
           notes: 'Restored omitted mutation to verification pool',
-          verifiedBy: 'SYSTEM',
+          verified_by: 'SYSTEM',
           confidence: 0
         }
       })

@@ -14,16 +14,16 @@ const mockResidents = [
     name: 'ANNA CARLINA / AGUSTINUS ERWIN',
     aliases: [],
     blok: 'C10',
-    houseNumber: '10',
-    isActive: true
+    house_number: '10',
+    is_active: true
   },
   {
     id: '2', 
     name: 'H M NUHLODI',
     aliases: [],
     blok: 'C12',
-    houseNumber: '3',
-    isActive: true
+    house_number: '3',
+    is_active: true
   }
 ]
 
@@ -172,10 +172,10 @@ class FuzzyNameDebugTestV2 {
     const normalizedPattern = addressPattern.replace(/\s+/g, ' ').trim()
     
     return mockResidents.find(resident => {
-      if (!resident.blok || !resident.houseNumber) return false
+      if (!resident.blok || !resident.house_number) return false
       
       // Normalize resident address for comparison
-      const residentAddress = `${resident.blok} / ${resident.houseNumber}`.replace(/\s+/g, ' ').trim()
+      const residentAddress = `${resident.blok} / ${resident.house_number}`.replace(/\s+/g, ' ').trim()
       
       // Check for exact match first
       if (residentAddress === normalizedPattern) return true

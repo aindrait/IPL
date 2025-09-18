@@ -144,7 +144,7 @@ function AppSidebar() {
             <SidebarMenu>
               {mainNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton asChild is_active={pathname === item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href}>
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.name}</span>
@@ -176,7 +176,7 @@ function AppSidebar() {
                 <SidebarMenuSub>
                   {managementNavigationItems.map((item) => (
                     <SidebarMenuSubItem key={item.name}>
-                      <SidebarMenuSubButton asChild is_active={pathname === item.href}>
+                      <SidebarMenuSubButton asChild isActive={pathname === item.href}>
                         <Link href={item.href}>
                           <item.icon />
                           <span>{item.name}</span>
@@ -210,7 +210,7 @@ function AppSidebar() {
                 <SidebarMenuSub>
                   {reportsNavigationItems.map((item) => (
                     <SidebarMenuSubItem key={item.name}>
-                      <SidebarMenuSubButton asChild is_active={pathname === item.href}>
+                      <SidebarMenuSubButton asChild isActive={pathname === item.href}>
                         <Link href={item.href}>
                           <item.icon />
                           <span>{item.name}</span>
@@ -245,7 +245,7 @@ function AppSidebar() {
                   <SidebarMenuSub>
                     {adminNavigationItems.map((item) => (
                       <SidebarMenuSubItem key={item.name}>
-                        <SidebarMenuSubButton asChild is_active={pathname === item.href}>
+                        <SidebarMenuSubButton asChild isActive={pathname === item.href}>
                           <Link href={item.href}>
                             <item.icon />
                             <span>{item.name}</span>

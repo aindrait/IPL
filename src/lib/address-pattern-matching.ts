@@ -5,7 +5,7 @@
 
 export interface AddressPattern {
   blok: string
-  houseNumber: string
+  house_number: string
   format: string
   confidence: number
   rawMatch: string
@@ -13,7 +13,7 @@ export interface AddressPattern {
 
 export interface AddressMatchResult {
   pattern: AddressPattern | null
-  residentId?: string
+  resident_id?: string
   confidence: number
   factors: string[]
 }
@@ -21,7 +21,7 @@ export interface AddressMatchResult {
 export class AddressPatternMatcher {
   private patterns: Array<{
     regex: RegExp
-    extractor: (match: RegExpMatchArray) => { blok: string; houseNumber: string }
+    extractor: (match: RegExpMatchArray) => { blok: string; house_number: string }
     format: string
     confidence: number
   }>
@@ -33,7 +33,7 @@ export class AddressPatternMatcher {
         regex: /C\s*(\d+)\s*[\/\s]\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '') // Remove leading zeros
+          house_number: match[2].replace(/^0+/, '') // Remove leading zeros
         }),
         format: 'C##/#',
         confidence: 0.95
@@ -44,7 +44,7 @@ export class AddressPatternMatcher {
         regex: /C\s*(\d+)\s*no\.?\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'C## no#',
         confidence: 0.9
@@ -55,7 +55,7 @@ export class AddressPatternMatcher {
         regex: /C\s*(\d+)\s*nomor\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'C ## nomor ##',
         confidence: 0.9
@@ -66,7 +66,7 @@ export class AddressPatternMatcher {
         regex: /blok\s*C\s*(\d+)\s*no\.?\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'Blok C## no #',
         confidence: 0.85
@@ -77,7 +77,7 @@ export class AddressPatternMatcher {
         regex: /C\s*(\d+)\s*[\/\s]\s*0?(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'C##/0#',
         confidence: 0.85
@@ -88,7 +88,7 @@ export class AddressPatternMatcher {
         regex: /C\s*(\d+)\s*-\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'C##-#',
         confidence: 0.8
@@ -99,7 +99,7 @@ export class AddressPatternMatcher {
         regex: /C\.?\s*(\d+)\s*[\/\s]\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'C.##/#',
         confidence: 0.8
@@ -110,7 +110,7 @@ export class AddressPatternMatcher {
         regex: /cluster\s*C\s*(\d+)\s*No\.?\s*(\d+)/i,
         extractor: (match) => ({
           blok: `C ${match[1]}`,
-          houseNumber: match[2].replace(/^0+/, '')
+          house_number: match[2].replace(/^0+/, '')
         }),
         format: 'Cluster C## No.#',
         confidence: 0.75
@@ -125,11 +125,11 @@ export class AddressPatternMatcher {
     for (const pattern of this.patterns) {
       const match = description.match(pattern.regex)
       if (match) {
-        const { blok, houseNumber } = pattern.extractor(match)
+        const { blok, house_number } = pattern.extractor(match)
         
         return {
           blok,
-          houseNumber,
+          house_number,
           format: pattern.format,
           confidence: pattern.confidence,
           rawMatch: match[0]
@@ -145,9 +145,9 @@ export class AddressPatternMatcher {
    */
   findMatchingResident(addressPattern: AddressPattern, residents: any[]): any | null {
     return residents.find(r => 
-      r.blok && r.houseNumber && 
+      r.blok && r.house_number && 
       this.normalizeBlok(r.blok) === this.normalizeBlok(addressPattern.blok) &&
-      this.normalizeHouseNumber(r.houseNumber) === this.normalizeHouseNumber(addressPattern.houseNumber)
+      this.normalizeHouseNumber(r.house_number) === this.normalizeHouseNumber(addressPattern.house_number)
     )
   }
 
@@ -177,11 +177,11 @@ export class AddressPatternMatcher {
 
     return {
       pattern: addressPattern,
-      residentId: resident.id,
+      resident_id: resident.id,
       confidence: addressPattern.confidence,
       factors: [
         `Address pattern match: ${addressPattern.rawMatch}`,
-        `Resident: ${resident.name} (${resident.blok}/${resident.houseNumber})`
+        `Resident: ${resident.name} (${resident.blok}/${resident.house_number})`
       ]
     }
   }
@@ -198,10 +198,10 @@ export class AddressPatternMatcher {
         for (const match of matches) {
           const matchArray = match.match(pattern.regex)
           if (matchArray) {
-            const { blok, houseNumber } = pattern.extractor(matchArray)
+            const { blok, house_number } = pattern.extractor(matchArray)
             patterns.push({
               blok,
-              houseNumber,
+              house_number,
               format: pattern.format,
               confidence: pattern.confidence,
               rawMatch: match
@@ -216,7 +216,7 @@ export class AddressPatternMatcher {
       .sort((a, b) => b.confidence - a.confidence)
       .filter((pattern, index, self) => 
         index === self.findIndex(p => 
-          p.blok === pattern.blok && p.houseNumber === pattern.houseNumber
+          p.blok === pattern.blok && p.house_number === pattern.house_number
         )
       )
   }
@@ -235,8 +235,8 @@ export class AddressPatternMatcher {
   /**
    * Normalize house number format for comparison
    */
-  private normalizeHouseNumber(houseNumber: string): string {
-    return houseNumber
+  private normalizeHouseNumber(house_number: string): string {
+    return house_number
       .replace(/^0+/, '') // Remove leading zeros
       .trim()
   }
@@ -253,7 +253,7 @@ export class AddressPatternMatcher {
     }
 
     // House number similarity
-    if (this.normalizeHouseNumber(pattern1.houseNumber) === this.normalizeHouseNumber(pattern2.houseNumber)) {
+    if (this.normalizeHouseNumber(pattern1.house_number) === this.normalizeHouseNumber(pattern2.house_number)) {
       similarity += 0.5
     }
 
@@ -329,11 +329,11 @@ export class AddressPatternMatcher {
     const blokValid = /^C\s*\d+$/.test(pattern.blok)
     
     // Check house number (should be numeric)
-    const houseNumberValid = /^\d+$/.test(pattern.houseNumber)
+    const houseNumberValid = /^\d+$/.test(pattern.house_number)
     
     // Check reasonable ranges
     const blokNumber = parseInt(pattern.blok.replace(/\D/g, ''))
-    const houseNumberValidRange = parseInt(pattern.houseNumber) >= 1 && parseInt(pattern.houseNumber) <= 999
+    const houseNumberValidRange = parseInt(pattern.house_number) >= 1 && parseInt(pattern.house_number) <= 999
     
     return blokValid && houseNumberValid && blokNumber >= 1 && blokNumber <= 99 && houseNumberValidRange
   }
@@ -342,7 +342,7 @@ export class AddressPatternMatcher {
    * Generate standardized address string from pattern
    */
   formatAddress(pattern: AddressPattern): string {
-    return `${pattern.blok} / ${pattern.houseNumber}`
+    return `${pattern.blok} / ${pattern.house_number}`
   }
 
   /**
@@ -412,14 +412,14 @@ export function createIndonesianAddressMatcher(): AddressPatternMatcher {
 /**
  * Utility function to standardize address format for display
  */
-export function standardizeAddressFormat(blok: string, houseNumber: string): string {
+export function standardizeAddressFormat(blok: string, house_number: string): string {
   const normalizedBlok = blok
     .toUpperCase()
     .replace(/\s+/g, ' ')
     .replace(/[.\-]/g, '')
     .trim()
   
-  const normalizedHouseNumber = houseNumber
+  const normalizedHouseNumber = house_number
     .replace(/^0+/, '')
     .trim()
   

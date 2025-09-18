@@ -12,9 +12,9 @@ async function main() {
       process.exit(0);
     }
 
-    // Generate Prisma Client with production schema
+    // Generate Prisma Client with main schema (now using snake_case)
     console.log('Generating Prisma Client...');
-    execSync('npx prisma generate --schema=prisma/schema.prisma.production', {
+    execSync('npx prisma generate', {
       stdio: 'inherit',
       env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
     });
@@ -41,10 +41,10 @@ async function main() {
       try {
         await prisma.user.findFirst();
         console.log('Database tables already exist, running pending migrations...');
-        execSync('npx prisma db push --schema=prisma/schema.prisma.production --accept-data-loss', { stdio: 'inherit' });
+        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
       } catch (error) {
         console.log('Database tables do not exist, running initial migration...');
-        execSync('npx prisma db push --schema=prisma/schema.prisma.production --accept-data-loss', { stdio: 'inherit' });
+        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
       }
     } catch (error) {
       console.log('Database connection failed, skipping migration');

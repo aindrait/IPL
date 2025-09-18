@@ -35,12 +35,12 @@ import {
 interface Payment {
   id: string
   amount: number
-  paymentDate: string
+  payment_date: string
   status: 'PENDING' | 'VERIFIED' | 'REJECTED'
-  paymentMethod?: string | null
+  payment_method?: string | null
   notes?: string | null
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
   resident: {
     id: string
     name: string
@@ -49,7 +49,7 @@ interface Payment {
     rt: number
     rw: number
     blok?: string
-    houseNumber?: string
+    house_number?: string
   }
   scheduleItems?: {
     id: string
@@ -57,15 +57,15 @@ interface Payment {
     label?: string | null
     status: string
     amount: number
-    dueDate: string
-    paidDate?: string | null
+    due_date: string
+    paid_date?: string | null
     period: {
       id: string
       name: string
       month: number
       year: number
       amount: number
-      dueDate: string
+      due_date: string
     }
   }[]
   createdBy: {
@@ -79,12 +79,12 @@ interface Payment {
 interface PaymentProof {
   id: string
   filename: string
-  filePath: string
-  fileSize: number
-  mimeType: string
+  file_path: string
+  file_size: number
+  mime_type: string
   analyzed: boolean
-  analysisResult?: string
-  createdAt: string
+  analysis_result?: string
+  created_at: string
 }
 
 interface Period {
@@ -93,8 +93,8 @@ interface Period {
   month: number
   year: number
   amount: number
-  dueDate: string
-  isActive: boolean
+  due_date: string
+  is_active: boolean
   _count: {
     payments: number
   }
@@ -108,8 +108,8 @@ interface Resident {
   rt: number
   rw: number
   blok?: string
-  houseNumber?: string
-  paymentIndex?: number
+  house_number?: string
+  payment_index?: number
 }
 
 interface PaymentsResponse {
@@ -127,18 +127,18 @@ type ScheduleItem = {
   type: 'MONTHLY' | 'SPECIAL' | 'DONATION'
   label: string | null
   amount: number
-  dueDate: string
+  due_date: string
   status: 'PLANNED' | 'PAID' | 'SKIPPED' | 'CARRIED_OVER' | 'OPTIONAL'
   indexCode?: string
-  period: { id: string; name: string; month: number; year: number; amount: number; dueDate: string }
+  period: { id: string; name: string; month: number; year: number; amount: number; due_date: string }
 }
 
 interface FormData {
-  residentId: string
-  periodId: string
+  resident_id: string
+  period_id: string
   amount: number
-  paymentDate: string
-  paymentMethod?: string
+  payment_date: string
+  payment_method?: string
   notes?: string
   scheduleItemId?: string
 }
@@ -162,11 +162,11 @@ export default function PaymentsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const [formData, setFormData] = useState<FormData>({
-    residentId: '',
-    periodId: '',
+    resident_id: '',
+    period_id: '',
     amount: 0,
-    paymentDate: new Date().toISOString().split('T')[0],
-    paymentMethod: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: '',
     notes: '',
     scheduleItemId: undefined
   })
@@ -189,13 +189,13 @@ export default function PaymentsPage() {
   // Fetch resident schedules when resident selection changes (dialog)
   useEffect(() => {
     const load = async () => {
-      if (!formData.residentId) {
+      if (!formData.resident_id) {
         setScheduleItems([])
         return
       }
       try {
         const params = new URLSearchParams({ 
-          residentId: formData.residentId, 
+          resident_id: formData.resident_id, 
           limit: '200',
           includePaid: 'false' // Exclude PAID and SKIPPED items for payment creation
         })
@@ -208,15 +208,15 @@ export default function PaymentsPage() {
       }
     }
     load()
-  }, [formData.residentId])
+  }, [formData.resident_id])
 
   // When resident changes, reset schedule-related selections
   useEffect(() => {
-    setFormData((prev) => ({ ...prev, periodId: '', scheduleItemId: undefined }))
+    setFormData((prev) => ({ ...prev, period_id: '', scheduleItemId: undefined }))
     setStartIndex('')
     setNumMonths(1)
     setSelectedExtraIds([])
-  }, [formData.residentId])
+  }, [formData.resident_id])
 
   const residentById = useMemo(() => {
     const map: Record<string, Resident> = {}
@@ -227,7 +227,7 @@ export default function PaymentsPage() {
   const monthlyItems = useMemo(() =>
     scheduleItems
       .filter((it) => it.type === 'MONTHLY')
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
   , [scheduleItems])
 
   const monthlyStartOptions = useMemo(() => monthlyItems.map((it) => it.indexCode || it.period.name), [monthlyItems])
@@ -257,18 +257,18 @@ export default function PaymentsPage() {
 
   // Calculate suggested transfer amount with payment index
   const suggestedTransferAmount = useMemo(() => {
-    if (formData.residentId && selectedAllItems.length > 0) {
-      const resident = residentById[formData.residentId]
+    if (formData.resident_id && selectedAllItems.length > 0) {
+      const resident = residentById[formData.resident_id]
       const baseAmount = suggestedTotal
-      const paymentIndex = resident?.paymentIndex || 0
+      const payment_index = resident?.payment_index || 0
       
-      if (paymentIndex > 0) {
+      if (payment_index > 0) {
         // Combine base amount with payment index (e.g., {parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "200000").split(',')[0], 10) || 200000} + 111 = {parseInt((process.env.NEXT_PUBLIC_IPL_BASE_AMOUNT || "200000").split(',')[0], 10) || 200000}111)
-        return baseAmount + paymentIndex
+        return baseAmount + payment_index
       }
     }
     return suggestedTotal
-  }, [formData.residentId, selectedAllItems.length, suggestedTotal, residentById])
+  }, [formData.resident_id, selectedAllItems.length, suggestedTotal, residentById])
 
   // Auto-fill amount when selection changes
   useEffect(() => {
@@ -359,8 +359,8 @@ export default function PaymentsPage() {
           // Use FormData for file uploads
           const formDataObj = new FormData()
           formDataObj.append('itemIds', JSON.stringify(selectedAllItems.map((it) => it.id)))
-          formDataObj.append('paymentDate', formData.paymentDate)
-          if (formData.paymentMethod) formDataObj.append('paymentMethod', formData.paymentMethod)
+          formDataObj.append('payment_date', formData.payment_date)
+          if (formData.payment_method) formDataObj.append('payment_method', formData.payment_method)
           if (formData.notes) formDataObj.append('notes', formData.notes)
           
           // Add files
@@ -387,8 +387,8 @@ export default function PaymentsPage() {
           // Use JSON for no files
           const payload = {
             itemIds: selectedAllItems.map((it) => it.id),
-            paymentDate: formData.paymentDate,
-            paymentMethod: formData.paymentMethod,
+            payment_date: formData.payment_date,
+            payment_method: formData.payment_method,
             notes: formData.notes,
           }
           response = await fetch('/api/payments', {
@@ -426,23 +426,23 @@ export default function PaymentsPage() {
       const selectedItem = selectedAllItems[0]
 
       // Validate mandatory fields
-      if (!formData.residentId) {
+      if (!formData.resident_id) {
         setError('Warga harus dipilih')
         setSubmitting(false)
         return
       }
 
       // Append required fields safely
-      formDataObj.append('residentId', String(formData.residentId))
+      formDataObj.append('resident_id', String(formData.resident_id))
       if (selectedItem?.period?.id) {
-        formDataObj.append('periodId', String(selectedItem.period.id))
+        formDataObj.append('period_id', String(selectedItem.period.id))
       }
       if (selectedItem?.id) {
         formDataObj.append('scheduleItemId', String(selectedItem.id))
       }
       formDataObj.append('amount', String(formData.amount))
-      formDataObj.append('paymentDate', String(formData.paymentDate))
-      if (formData.paymentMethod) formDataObj.append('paymentMethod', String(formData.paymentMethod))
+      formDataObj.append('payment_date', String(formData.payment_date))
+      if (formData.payment_method) formDataObj.append('payment_method', String(formData.payment_method))
       if (formData.notes) formDataObj.append('notes', String(formData.notes))
 
       // Add files
@@ -544,9 +544,9 @@ export default function PaymentsPage() {
     await fetchPayments() // Refresh to get updated analysis results
   }
 
-  const handleVerifyPayment = async (paymentId: string) => {
+  const handleVerifyPayment = async (payment_id: string) => {
     try {
-      const response = await fetch(`/api/payments/${paymentId}`, {
+      const response = await fetch(`/api/payments/${payment_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -565,11 +565,11 @@ export default function PaymentsPage() {
 
   const resetForm = () => {
     setFormData({
-      residentId: '',
-      periodId: '',
+      resident_id: '',
+      period_id: '',
       amount: 0,
-      paymentDate: new Date().toISOString().split('T')[0],
-      paymentMethod: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: '',
       notes: '',
       scheduleItemId: undefined
     })
@@ -683,12 +683,12 @@ export default function PaymentsPage() {
             <form onSubmit={handleSubmit}>
               <div className="grid gap-3 py-2">
                 <div className="grid grid-cols-4 items-center gap-3">
-                  <Label htmlFor="residentId" className="text-right">
+                  <Label htmlFor="resident_id" className="text-right">
                     Warga
                   </Label>
                   <Select
-                    value={formData.residentId}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, residentId: value }))}
+                    value={formData.resident_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, resident_id: value }))}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Pilih warga" />
@@ -696,7 +696,7 @@ export default function PaymentsPage() {
                     <SelectContent>
                       {residents.map((resident) => (
                         <SelectItem key={resident.id} value={resident.id}>
-                          {(resident.blok ? `${resident.blok} / ` : '')}{resident.houseNumber || ''} - {resident.name} - RT {resident.rt}/RW {resident.rw}
+                          {(resident.blok ? `${resident.blok} / ` : '')}{resident.house_number || ''} - {resident.name} - RT {resident.rt}/RW {resident.rw}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -713,9 +713,9 @@ export default function PaymentsPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-sm font-medium">Mulai bulan</Label>
-                        <Select value={startIndex} onValueChange={setStartIndex} disabled={!formData.residentId}>
+                        <Select value={startIndex} onValueChange={setStartIndex} disabled={!formData.resident_id}>
                           <SelectTrigger className="mt-1">
-                            <SelectValue placeholder={formData.residentId ? "Pilih bulan mulai" : "Pilih warga terlebih dahulu"} />
+                            <SelectValue placeholder={formData.resident_id ? "Pilih bulan mulai" : "Pilih warga terlebih dahulu"} />
                           </SelectTrigger>
                           <SelectContent>
                             {monthlyItems.map((it) => (
@@ -735,7 +735,7 @@ export default function PaymentsPage() {
                           value={numMonths} 
                           onChange={(e) => setNumMonths(Math.max(1, parseInt(e.target.value) || 1))}
                           className="mt-1"
-                          disabled={!formData.residentId}
+                          disabled={!formData.resident_id}
                         />
                       </div>
                     </div>
@@ -755,7 +755,7 @@ export default function PaymentsPage() {
                           {monthlyItems.map((it) => {
                             const selected = consecutiveSelection.some(s => s.id === it.id)
                             const paid = it.status === 'PAID'
-                            const isOverdue = it.dueDate && new Date(it.dueDate) < new Date()
+                            const isOverdue = it.due_date && new Date(it.due_date) < new Date()
                             return (
                               <span 
                                 key={it.id} 
@@ -864,9 +864,9 @@ export default function PaymentsPage() {
                           </div>
                           <div>
                             <span className="text-gray-600 block">Kode transfer (index bayar):</span>
-                            <div className="font-semibold text-blue-900">{residentById[formData.residentId]?.paymentIndex ?? '-'}</div>
+                            <div className="font-semibold text-blue-900">{residentById[formData.resident_id]?.payment_index ?? '-'}</div>
                           </div>
-                          {selectedAllItems.length > 0 && residentById[formData.residentId]?.paymentIndex && (
+                          {selectedAllItems.length > 0 && residentById[formData.resident_id]?.payment_index && (
                             <div className="md:col-span-2 p-3 bg-blue-100 rounded-md border border-blue-300">
                               <span className="text-blue-800 font-medium">
                                 💡 Rekomendasi pembayaran: <b>{formatCurrency(suggestedTransferAmount)}</b> (total + index bayar)
@@ -908,7 +908,7 @@ export default function PaymentsPage() {
                           ✅ Terisi otomatis: {formatCurrency(suggestedTransferAmount)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Jumlah ini sudah termasuk index bayar ({residentById[formData.residentId]?.paymentIndex || 0}).
+                          Jumlah ini sudah termasuk index bayar ({residentById[formData.resident_id]?.payment_index || 0}).
                           Anda dapat mengubahnya manual jika diperlukan.
                         </p>
                       </div>
@@ -916,25 +916,25 @@ export default function PaymentsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-3">
-                  <Label htmlFor="paymentDate" className="text-right">
+                  <Label htmlFor="payment_date" className="text-right">
                     Tanggal
                   </Label>
                   <Input
-                    id="paymentDate"
+                    id="payment_date"
                     type="date"
-                    value={formData.paymentDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
+                    value={formData.payment_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, payment_date: e.target.value }))}
                     className="col-span-3"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-3">
-                  <Label htmlFor="paymentMethod" className="text-right">
+                  <Label htmlFor="payment_method" className="text-right">
                     Metode
                   </Label>
                   <Select
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
+                    value={formData.payment_method}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value }))}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Pilih metode pembayaran" />
@@ -974,7 +974,7 @@ export default function PaymentsPage() {
                               <ImageIcon className="h-4 w-4" />
                               <span className="text-sm">{proof.filename}</span>
                               <span className="text-xs text-gray-500">
-                                ({(proof.fileSize / 1024 / 1024).toFixed(2)} MB)
+                                ({(proof.file_size / 1024 / 1024).toFixed(2)} MB)
                               </span>
                             </div>
                             <Badge variant="outline" className="text-xs">
@@ -1283,7 +1283,7 @@ export default function PaymentsPage() {
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-gray-400" />
                           <span className="text-sm">
-                            {new Date(payment.paymentDate).toLocaleDateString('id-ID')}
+                            {new Date(payment.payment_date).toLocaleDateString('id-ID')}
                           </span>
                         </div>
                       </TableCell>
@@ -1308,7 +1308,7 @@ export default function PaymentsPage() {
                                 proofs={payment.proofs}
                                 onAnalyze={handleAnalyzeProof}
                                 onVerifyPayment={handleVerifyPayment}
-                                paymentId={payment.id}
+                                payment_id={payment.id}
                               />
                             </DialogContent>
                           </Dialog>
@@ -1347,7 +1347,7 @@ export default function PaymentsPage() {
                         <PaginationItem key={page}>
                           <PaginationLink
                             onClick={() => handlePageChange(page)}
-                            isActive={pagination.page === page}
+                            is_active={pagination.page === page}
                             className="cursor-pointer"
                           >
                             {page}

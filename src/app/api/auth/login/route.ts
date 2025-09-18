@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
         name: true,
         role: true,
         password: true as any,
-        createdAt: true,
-        updatedAt: true
+        created_at: true,
+        updated_at: true
       }
     })
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Update last login time
     await db.user.update({
       where: { id: user.id },
-      data: { updatedAt: new Date() }
+      data: { updated_at: new Date() }
     })
 
     // Return user data without password

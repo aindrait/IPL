@@ -21,16 +21,16 @@ export interface EnhancedMatchResult extends MatchResult {
 
 export class EnhancedBankMatcher {
   private residents: any[] = []
-  private bankAliases: Map<string, string[]> = new Map() // residentId -> bank names
+  private bankAliases: Map<string, string[]> = new Map() // resident_id -> bank names
   private verificationPatterns: Map<string, any[]> = new Map() // pattern -> historical matches
 
   async initialize() {
     // Load residents with their bank aliases
     this.residents = await db.resident.findMany({
-      where: { isActive: true },
+      where: { is_active: true },
       include: {
         bankAliases: {
-          where: { isVerified: true },
+          where: { is_verified: true },
           orderBy: { frequency: 'desc' }
         }
       }
@@ -38,7 +38,7 @@ export class EnhancedBankMatcher {
 
     // Build alias lookup map
     for (const resident of this.residents) {
-      const aliases = resident.bankAliases.map((alias: any) => alias.bankName)
+      const aliases = resident.bankAliases.map((alias: any) => alias.bank_name)
       this.bankAliases.set(resident.id, aliases)
     }
 
@@ -50,7 +50,7 @@ export class EnhancedBankMatcher {
     const historicalVerifications = await db.bankMutationVerification.findMany({
       where: {
         action: 'MANUAL_CONFIRM',
-        verifiedBy: 'HISTORICAL_IMPORT'
+        verified_by: 'HISTORICAL_IMPORT'
       },
       include: {
         mutation: {
@@ -64,14 +64,14 @@ export class EnhancedBankMatcher {
     // Group by resident and build patterns
     for (const verification of historicalVerifications) {
       if (verification.mutation?.matchedResident) {
-        const residentId = verification.mutation.matchedResident.id
+        const resident_id = verification.mutation.matchedResident.id
         const description = verification.mutation.description
         
-        if (!this.verificationPatterns.has(residentId)) {
-          this.verificationPatterns.set(residentId, [])
+        if (!this.verificationPatterns.has(resident_id)) {
+          this.verificationPatterns.set(resident_id, [])
         }
         
-        this.verificationPatterns.get(residentId)!.push({
+        this.verificationPatterns.get(resident_id)!.push({
           description,
           amount: verification.mutation.amount,
           confidence: verification.confidence,
@@ -85,9 +85,9 @@ export class EnhancedBankMatcher {
     const results: EnhancedMatchResult[] = []
 
     // Strategy 1: Payment Index Matching
-    const paymentIndex = extractPaymentIndexFromAmount(transaction.amount)
-    if (paymentIndex) {
-      const resident = this.residents.find(r => r.paymentIndex === paymentIndex)
+    const payment_index = extractPaymentIndexFromAmount(transaction.amount)
+    if (payment_index) {
+      const resident = this.residents.find(r => r.payment_index === payment_index)
       if (resident) {
         const result = await this.createMatchResult(
           resident,
@@ -101,10 +101,10 @@ export class EnhancedBankMatcher {
     }
 
     // Strategy 2: Historical Pattern Matching
-    for (const [residentId, patterns] of this.verificationPatterns) {
+    for (const [resident_id, patterns] of this.verificationPatterns) {
       const similarity = this.calculatePatternSimilarity(transaction, patterns)
       if (similarity > 0.7) {
-        const resident = this.residents.find(r => r.id === residentId)
+        const resident = this.residents.find(r => r.id === resident_id)
         if (resident) {
           const result = await this.createMatchResult(
             resident,
@@ -121,13 +121,13 @@ export class EnhancedBankMatcher {
     // Strategy 3: Enhanced Bank Alias Matching
     const descriptionData = parseDescription(transaction.description)
     for (const name of descriptionData.names) {
-      for (const [residentId, aliases] of this.bankAliases) {
+      for (const [resident_id, aliases] of this.bankAliases) {
         const aliasMatch = aliases.find(alias => 
           this.calculateNameSimilarity(name, alias) > 0.8
         )
         
         if (aliasMatch) {
-          const resident = this.residents.find(r => r.id === residentId)
+          const resident = this.residents.find(r => r.id === resident_id)
           if (resident) {
             const similarity = this.calculateNameSimilarity(name, aliasMatch)
             const result = await this.createMatchResult(
@@ -147,8 +147,8 @@ export class EnhancedBankMatcher {
     const housePattern = this.extractHousePattern(transaction.description)
     if (housePattern) {
       const resident = this.residents.find(r => 
-        r.blok && r.houseNumber && 
-        `${r.blok} / ${r.houseNumber}` === housePattern
+        r.blok && r.house_number && 
+        `${r.blok} / ${r.house_number}` === housePattern
       )
       
       if (resident) {
@@ -179,23 +179,23 @@ export class EnhancedBankMatcher {
     matchFactors: string[]
   ): Promise<EnhancedMatchResult> {
     // Check for matching payment within date range
-    const transactionDate = new Date(transaction.date)
+    const transaction_date = new Date(transaction.date)
     const matchingPayment = await db.payment.findFirst({
       where: {
-        residentId: resident.id,
+        resident_id: resident.id,
         amount: transaction.amount,
-        paymentDate: {
-          gte: new Date(transactionDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-          lte: new Date(transactionDate.getTime() + 7 * 24 * 60 * 60 * 1000)
+        payment_date: {
+          gte: new Date(transaction_date.getTime() - 7 * 24 * 60 * 60 * 1000),
+          lte: new Date(transaction_date.getTime() + 7 * 24 * 60 * 60 * 1000)
         }
       },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { payment_date: 'desc' }
     })
 
     // Boost confidence if exact payment match found
     let finalConfidence = baseConfidence
     if (matchingPayment) {
-      const dateDiff = calculateDateDifference(transactionDate, matchingPayment.paymentDate)
+      const dateDiff = calculateDateDifference(transaction_date, matchingPayment.payment_date)
       const dateBoost = Math.max(0, 0.1 - (dateDiff * 0.02)) // Up to 10% boost for close dates
       finalConfidence = Math.min(0.98, baseConfidence + dateBoost)
       matchFactors.push(`Payment found within ${dateDiff} days`)
@@ -217,8 +217,8 @@ export class EnhancedBankMatcher {
     ].filter(Boolean)
 
     return {
-      residentId: resident.id,
-      paymentId: matchingPayment?.id,
+      resident_id: resident.id,
+      payment_id: matchingPayment?.id,
       confidence: finalConfidence,
       matchFactors,
       strategy,
@@ -308,7 +308,7 @@ export class EnhancedBankMatcher {
 
   async updateLearning(mutation: any, verificationResult: any) {
     // Update bank aliases based on successful verifications
-    if (verificationResult.action === 'MANUAL_CONFIRM' && mutation.matchedResidentId) {
+    if (verificationResult.action === 'MANUAL_CONFIRM' && mutation.matched_resident_id) {
       const descriptionData = parseDescription(mutation.description)
       
       for (const name of descriptionData.names) {
@@ -316,20 +316,20 @@ export class EnhancedBankMatcher {
           await db.residentBankAlias.upsert({
             where: {
               residentId_bankName: {
-                residentId: mutation.matchedResidentId,
-                bankName: name
+                resident_id: mutation.matched_resident_id,
+                bank_name: name
               }
             },
             update: {
               frequency: { increment: 1 },
-              lastSeen: new Date(),
-              isVerified: true
+              last_seen: new Date(),
+              is_verified: true
             },
             create: {
-              residentId: mutation.matchedResidentId,
-              bankName: name,
+              resident_id: mutation.matched_resident_id,
+              bank_name: name,
               frequency: 1,
-              isVerified: true
+              is_verified: true
             }
           })
         }

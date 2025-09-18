@@ -18,8 +18,8 @@ export async function POST() {
       month: number
       year: number
       amount: number
-      dueDate: Date
-      isActive: boolean
+      due_date: Date
+      is_active: boolean
     }> = []
     
     // Create periods for next 12 months
@@ -31,15 +31,15 @@ export async function POST() {
       const periodName = `IPL Bulan ${new Date(year, month - 1).toLocaleDateString('id-ID', { month: 'long' })} ${year}`
       // Get due date from environment variable or use default
       const dueDay = parseInt(process.env.NEXT_PUBLIC_DEFAULT_DUE_DATE || "5", 10) || 5
-      const dueDate = new Date(year, month, dueDay) // Due on specified day of next month
+      const due_date = new Date(year, month, dueDay) // Due on specified day of next month
       
       periods.push({
         name: periodName,
         month,
         year,
         amount: iplAmount,
-        dueDate,
-        isActive: true
+        due_date,
+        is_active: true
       })
     }
 
@@ -76,7 +76,7 @@ export async function POST() {
         email: 'budi@email.com',
         rt: 1,
         rw: 1,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       },
       {
         name: 'Siti Aminah',
@@ -85,7 +85,7 @@ export async function POST() {
         email: 'siti@email.com',
         rt: 1,
         rw: 1,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       },
       {
         name: 'Ahmad Wijaya',
@@ -94,7 +94,7 @@ export async function POST() {
         email: 'ahmad@email.com',
         rt: 2,
         rw: 1,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       },
       {
         name: 'Dewi Lestari',
@@ -103,7 +103,7 @@ export async function POST() {
         email: 'dewi@email.com',
         rt: 2,
         rw: 1,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       },
       {
         name: 'Eko Prasetyo',
@@ -112,7 +112,7 @@ export async function POST() {
         email: 'eko@email.com',
         rt: 3,
         rw: 1,
-        createdById: systemUser.id
+        created_by_id: systemUser.id
       }
     ]
 

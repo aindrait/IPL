@@ -45,25 +45,25 @@ interface ProcessingStats {
 
 interface MutationItem {
   id: string
-  transactionDate: string
+  transaction_date: string
   description: string
   amount: number
   balance?: number | null
-  referenceNumber?: string | null
-  transactionType?: 'CR' | 'DB' | null
+  reference_number?: string | null
+  transaction_type?: 'CR' | 'DB' | null
   category?: string | null
-  isOmitted: boolean
-  omitReason?: string | null
-  isVerified: boolean
-  verifiedAt?: string | null
-  verifiedBy?: string | null
-  matchedPaymentId?: string | null
-  matchedResidentId?: string | null
-  matchScore?: number | null
-  matchingStrategy?: string | null
-  uploadBatch: string
-  fileName?: string | null
-  createdAt: string
+  is_omitted: boolean
+  omit_reason?: string | null
+  is_verified: boolean
+  verified_at?: string | null
+  verified_by?: string | null
+  matched_payment_id?: string | null
+  matched_resident_id?: string | null
+  match_score?: number | null
+  matching_strategy?: string | null
+  upload_batch: string
+  file_name?: string | null
+  created_at: string
   residentName?: string | null
   residentBlok?: string | null
   residentHouseNumber?: string | null
@@ -99,11 +99,11 @@ export default function BankMutationsPage() {
   const [page, setPage] = useState<number>(1)
   const [limit] = useState<number>(20)
   const [autoVerifying, setAutoVerifying] = useState(false)
-  const [residents, setResidents] = useState<Array<{id:string; name:string; blok?:string; houseNumber?:string}>>([])
+  const [residents, setResidents] = useState<Array<{id:string; name:string; blok?:string; house_number?:string}>>([])
   const [residentsLoading, setResidentsLoading] = useState(false)
   const [residentSearch, setResidentSearch] = useState('')
   const [finderDialogOpen, setFinderDialogOpen] = useState(false)
-  const [selectedResident, setSelectedResident] = useState<{id:string; name:string; blok?:string; houseNumber?:string} | null>(null)
+  const [selectedResident, setSelectedResident] = useState<{id:string; name:string; blok?:string; house_number?:string} | null>(null)
   const [currentMutationId, setCurrentMutationId] = useState<string | null>(null)
 
   const loadResidents = async (searchTerm = '') => {
@@ -118,7 +118,7 @@ export default function BankMutationsPage() {
         id: x.id,
         name: x.name,
         blok: x.blok,
-        houseNumber: x.houseNumber
+        house_number: x.house_number
       }))
       setResidents(list)
     } catch (error) {
@@ -692,23 +692,23 @@ export default function BankMutationsPage() {
                       </TableRow>
                     )}
                     {!listLoading && items.map((it) => {
-                      const dateStr = new Date(it.transactionDate).toLocaleDateString('id-ID')
+                      const dateStr = new Date(it.transaction_date).toLocaleDateString('id-ID')
                       const resident = it.residentName ? `${it.residentName}${it.residentBlok ? ` (${it.residentBlok}${it.residentHouseNumber ? `/${it.residentHouseNumber}` : ''})` : ''}` : '-'
                       
                       // Skip omitted transactions based on filter
-                      if (it.isOmitted && omittedFilter === 'false') {
+                      if (it.is_omitted && omittedFilter === 'false') {
                         return null
                       }
                       
                       return (
-                        <TableRow key={it.id} className={`${!it.isVerified ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''} ${it.isOmitted ? 'bg-gray-100 dark:bg-gray-800/50' : ''}`}>
+                        <TableRow key={it.id} className={`${!it.is_verified ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''} ${it.is_omitted ? 'bg-gray-100 dark:bg-gray-800/50' : ''}`}>
                           <TableCell>{dateStr}</TableCell>
                           <TableCell className="max-w-[600px] truncate" title={it.description}>{it.description}</TableCell>
                           <TableCell className="text-right">{formatCurrency(it.amount)}</TableCell>
                           <TableCell>
-                            {it.transactionType && (
-                              <Badge variant={it.transactionType === 'CR' ? 'default' : 'secondary'}>
-                                {it.transactionType}
+                            {it.transaction_type && (
+                              <Badge variant={it.transaction_type === 'CR' ? 'default' : 'secondary'}>
+                                {it.transaction_type}
                               </Badge>
                             )}
                           </TableCell>
@@ -727,22 +727,22 @@ export default function BankMutationsPage() {
                           <TableCell>{resident}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2 text-sm">
-                              <Badge variant={it.matchedResidentId ? 'default' : 'secondary'}>
-                                {it.matchedResidentId ? 'Matched' : 'Unmatched'}
+                              <Badge variant={it.matched_resident_id ? 'default' : 'secondary'}>
+                                {it.matched_resident_id ? 'Matched' : 'Unmatched'}
                               </Badge>
-                              {typeof it.matchScore === 'number' && (
-                                <span className="text-muted-foreground">{Math.round(it.matchScore * 100)}%</span>
+                              {typeof it.match_score === 'number' && (
+                                <span className="text-muted-foreground">{Math.round(it.match_score * 100)}%</span>
                               )}
-                              {it.matchingStrategy && (
-                                <span className="text-xs text-muted-foreground">{it.matchingStrategy}</span>
+                              {it.matching_strategy && (
+                                <span className="text-xs text-muted-foreground">{it.matching_strategy}</span>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {it.isVerified ? (
+                            {it.is_verified ? (
                               <div className="flex items-center gap-2">
                                 <Badge variant={'default'}>Verified</Badge>
-                                {it.verifiedBy !== 'OMITTED' && (
+                                {it.verified_by !== 'OMITTED' && (
                                   <>
                                     <Button
                                       size="sm"
@@ -776,7 +776,7 @@ export default function BankMutationsPage() {
                                           const res = await fetch(`/api/bank-mutations/omit/${it.id}`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ omitReason: reason })
+                                            body: JSON.stringify({ omit_reason: reason })
                                           })
                                           const data = await res.json()
                                           if (!res.ok) throw new Error(data.error || 'Omit failed')
@@ -791,7 +791,7 @@ export default function BankMutationsPage() {
                                     </Button>
                                   </>
                                 )}
-                                {it.verifiedBy === 'OMITTED' && (
+                                {it.verified_by === 'OMITTED' && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -830,7 +830,7 @@ export default function BankMutationsPage() {
                                       const res = await fetch(`/api/bank-mutations/verify/${it.id}`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ verifiedBy: 'USER' })
+                                        body: JSON.stringify({ verified_by: 'USER' })
                                       })
                                       const data = await res.json()
                                       if (!res.ok) throw new Error(data.error || 'Verify failed')
@@ -856,7 +856,7 @@ export default function BankMutationsPage() {
                                       const res = await fetch(`/api/bank-mutations/omit/${it.id}`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ omitReason: reason })
+                                        body: JSON.stringify({ omit_reason: reason })
                                       })
                                       const data = await res.json()
                                       if (!res.ok) throw new Error(data.error || 'Omit failed')
@@ -931,7 +931,7 @@ export default function BankMutationsPage() {
                                             const res = await fetch(`/api/bank-mutations/match-manual/${it.id}`, {
                                               method: 'POST',
                                               headers: { 'Content-Type': 'application/json' },
-                                              body: JSON.stringify({ residentId: residentInput, paymentId: paymentInput || undefined, verified: Boolean(verifyNow) })
+                                              body: JSON.stringify({ resident_id: residentInput, payment_id: paymentInput || undefined, verified: Boolean(verifyNow) })
                                             })
                                             const data = await res.json()
                                             if (!res.ok) throw new Error(data.error || 'Manual match failed')
@@ -988,9 +988,9 @@ export default function BankMutationsPage() {
                                               }}
                                             >
                                               <div className="font-medium">{resident.name}</div>
-                                              {resident.blok && resident.houseNumber && (
+                                              {resident.blok && resident.house_number && (
                                                 <div className="text-sm text-muted-foreground">
-                                                  {resident.blok} {resident.houseNumber}
+                                                  {resident.blok} {resident.house_number}
                                                 </div>
                                               )}
                                             </div>

@@ -17,10 +17,10 @@ type Item = {
   label: string | null
   amount: number
   status: 'PLANNED' | 'PAID' | 'SKIPPED' | 'CARRIED_OVER' | 'OPTIONAL'
-  dueDate: string
-  paidDate: string | null
-  resident: { id: string; name: string | null; blok: string | null; houseNumber: string | null; rt: number | null; rw: number | null }
-  period: { id: string; name: string; month: number; year: number; amount: number; dueDate: string }
+  due_date: string
+  paid_date: string | null
+  resident: { id: string; name: string | null; blok: string | null; house_number: string | null; rt: number | null; rw: number | null }
+  period: { id: string; name: string; month: number; year: number; amount: number; due_date: string }
   schedule: { id: string; name: string }
 }
 
@@ -252,16 +252,16 @@ export default function SchedulesPage() {
 
   const markPaid = async () => {
     if (selectedIds.length === 0) return
-    const paymentDate = prompt('Tanggal pembayaran (YYYY-MM-DD):')
-    if (!paymentDate) return
-    const paymentMethod = prompt('Metode pembayaran (opsional):') || undefined
+    const payment_date = prompt('Tanggal pembayaran (YYYY-MM-DD):')
+    if (!payment_date) return
+    const payment_method = prompt('Metode pembayaran (opsional):') || undefined
     const notes = prompt('Catatan (opsional):') || undefined
     
     try {
       const res = await fetch('/api/schedules/mark-paid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemIds: selectedIds, paymentDate, paymentMethod, notes }),
+        body: JSON.stringify({ itemIds: selectedIds, payment_date, payment_method, notes }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -382,14 +382,14 @@ export default function SchedulesPage() {
     }
   }
 
-  const deleteSchedule = async (scheduleId: string) => {
+  const deleteSchedule = async (schedule_id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus jadwal ini? Semua item terkait juga akan dihapus.')) {
       return
     }
     
-    setDeleteLoading(scheduleId)
+    setDeleteLoading(schedule_id)
     try {
-      await fetch(`/api/schedules?id=${scheduleId}`, {
+      await fetch(`/api/schedules?id=${schedule_id}`, {
         method: 'DELETE',
       })
       await fetchItems()
@@ -1053,7 +1053,7 @@ export default function SchedulesPage() {
               </TableHeader>
               <TableBody>
                 {items.map((it) => {
-                  const isExpiredDonation = it.type === 'DONATION' && new Date(it.dueDate) < new Date() && it.status !== 'PAID'
+                  const isExpiredDonation = it.type === 'DONATION' && new Date(it.due_date) < new Date() && it.status !== 'PAID'
                   const isDisabled = it.status === 'PAID' || it.status === 'SKIPPED' || isExpiredDonation
                   
                   const getRowClassName = () => {
@@ -1085,9 +1085,9 @@ export default function SchedulesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {it.resident?.blok && it.resident?.houseNumber
-                        ? `${it.resident.blok} / ${it.resident.houseNumber}`
-                        : it.resident?.blok || it.resident?.houseNumber || '-'}
+                      {it.resident?.blok && it.resident?.house_number
+                        ? `${it.resident.blok} / ${it.resident.house_number}`
+                        : it.resident?.blok || it.resident?.house_number || '-'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -1112,10 +1112,10 @@ export default function SchedulesPage() {
                             {new Date(0, it.period.month - 1).toLocaleDateString('id-ID', { month: 'long' })} {it.period.year}
                           </span>
                         ) : it.type === 'SPECIAL' ? (
-                          <span className="font-medium text-purple-700">THR {it.period?.year || new Date(it.dueDate).getFullYear()}</span>
+                          <span className="font-medium text-purple-700">THR {it.period?.year || new Date(it.due_date).getFullYear()}</span>
                         ) : it.type === 'DONATION' ? (
                           <span className="text-orange-700">
-                            {it.label} • {it.period?.year || new Date(it.dueDate).getFullYear()}
+                            {it.label} • {it.period?.year || new Date(it.due_date).getFullYear()}
                           </span>
                         ) : (
                           it.period?.name || '-'
@@ -1124,7 +1124,7 @@ export default function SchedulesPage() {
                     </TableCell>
                     <TableCell>
                       <div className={isExpiredDonation ? 'text-red-500 font-semibold' : ''}>
-                        {format(new Date(it.dueDate), 'dd MMM yyyy')}
+                        {format(new Date(it.due_date), 'dd MMM yyyy')}
                         {it.type === 'DONATION' && (
                           <div className="text-xs text-muted-foreground">
                             {isExpiredDonation ? 'Tidak dapat dipilih' : 'Sukarela'}

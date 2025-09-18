@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               blok: true,
-              houseNumber: true,
-              isActive: true,
+              house_number: true,
+              is_active: true,
             }
           }
         }
