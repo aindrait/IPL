@@ -201,7 +201,7 @@ export async function PUT(
       updateValues.push(paymentIndex)
     }
     if (validatedData.ownership !== undefined) {
-      updateFields.push('ownership = $' + (updateValues.length + 1))
+      updateFields.push('ownership = $' + (updateValues.length + 1) + '::"HouseOwnership"')
       updateValues.push(validatedData.ownership)
     }
     if (validatedData.isActive !== undefined) {

@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
         ${data.name}, ${data.address}, ${data.phone},
         ${data.email === '' ? null : data.email || null}, ${rtNumber}, ${rwNumber},
         ${data.blok || null}, ${data.houseNumber || null},
-        ${paymentIndex || null}, ${data.ownership || null}, 1, NOW(), NOW(), ${systemUser.id}, ${rtId}
+        ${paymentIndex || null}, ${data.ownership ? `'${data.ownership}'::"HouseOwnership"` : null}, 1, NOW(), NOW(), ${systemUser.id}, ${rtId}
       )
       RETURNING id, name, address, phone, email, rt, rw, blok, "houseNumber", "paymentIndex", ownership,
       "isActive", "createdAt", "updatedAt", "createdById", "rtId"

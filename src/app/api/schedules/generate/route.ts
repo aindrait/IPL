@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
               gen_random_uuid(),
-              ${'SPECIAL'}, ${'THR ' + year}, ${'PLANNED'}, ${input.amount}, ${thrDueDate}, ${null}, ${'THR - Pembayaran wajib'}, ${nowIso}, ${nowIso},
+              ${'SPECIAL'}::"PaymentScheduleItemType", ${'THR ' + year}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${input.amount}, ${thrDueDate}, ${null}, ${'THR - Pembayaran wajib'}, ${nowIso}, ${nowIso},
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )
           `
@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
               gen_random_uuid(),
-              ${v.type}, ${v.label}, ${v.status}, ${v.amount}, ${v.dueDate}, ${v.paidDate}, ${v.notes}, ${nowIso}, ${nowIso},
+              ${v.type}::"PaymentScheduleItemType", ${v.label}, ${v.status}::"PaymentScheduleItemStatus", ${v.amount}, ${v.dueDate}, ${v.paidDate}, ${v.notes}, ${nowIso}, ${nowIso},
               ${v.scheduleId}, ${v.periodId}, ${v.residentId}, ${v.paymentId}
             )
           `
@@ -436,7 +436,7 @@ export async function POST(request: NextRequest) {
               scheduleId, periodId, residentId, paymentId
             ) VALUES (
               gen_random_uuid(),
-              ${'SPECIAL'}, ${spec.label}, ${'PLANNED'}, ${period.amount}, ${period.dueDate}, ${null}, ${null}, ${nowIso}, ${nowIso},
+              ${'SPECIAL'}::"PaymentScheduleItemType", ${spec.label}, ${'PLANNED'}::"PaymentScheduleItemStatus", ${period.amount}, ${period.dueDate}, ${null}, ${null}, ${nowIso}, ${nowIso},
               ${schedule.id}, ${period.id}, ${r.id}, ${null}
             )
           `
