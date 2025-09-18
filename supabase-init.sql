@@ -1,6 +1,7 @@
 -- =====================================================
 -- INIT SCRIPT: PostgreSQL (Supabase) - IPL Master
 -- Create tables dengan snake_case field names
+-- Generated from Prisma schema
 -- =====================================================
 
 -- =====================================================

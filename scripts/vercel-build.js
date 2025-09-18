@@ -1,5 +1,4 @@
 const { execSync } = require('child_process');
-const { PrismaClient } = require('@prisma/client');
 
 async function main() {
   console.log('Starting Vercel build process...');
@@ -12,9 +11,16 @@ async function main() {
       process.exit(0);
     }
 
-    // Generate Prisma Client with main schema (now using snake_case)
+    // Generate Prisma Client
     console.log('Generating Prisma Client...');
     execSync('npx prisma generate', {
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
+    });
+
+    // Push schema to database (this will create/update tables if needed)
+    console.log('Pushing schema to database...');
+    execSync('npx prisma db push', {
       stdio: 'inherit',
       env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL }
     });
@@ -22,36 +28,6 @@ async function main() {
     // Build Next.js application
     console.log('Building Next.js application...');
     execSync('npx next build', { stdio: 'inherit' });
-
-    // Try to connect to the database and check if tables exist
-    console.log('Checking database connection...');
-    const prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL
-        }
-      }
-    });
-    
-    try {
-      await prisma.$connect();
-      console.log('Database connection successful');
-      
-      // Check if users table exists
-      try {
-        await prisma.user.findFirst();
-        console.log('Database tables already exist, running pending migrations...');
-        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-      } catch (error) {
-        console.log('Database tables do not exist, running initial migration...');
-        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-      }
-    } catch (error) {
-      console.log('Database connection failed, skipping migration');
-      console.log('Error:', error.message);
-    } finally {
-      await prisma.$disconnect();
-    }
 
     console.log('Vercel build process completed successfully');
   } catch (error) {
