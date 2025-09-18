@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       data: {
         payment_id: payment.id,
         verified_by: 'ADMIN', // TODO: Get from session
-        verificationMethod: input.verificationMethod,
+        verification_method: input.verificationMethod,
         status: newStatus,
         notes: verificationNotes,
         verification_data: input.verificationDetails ? JSON.stringify(input.verificationDetails) : null

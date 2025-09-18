@@ -51,7 +51,7 @@ interface Payment {
     blok?: string
     house_number?: string
   }
-  scheduleItems?: {
+  schedule_items?: {
     id: string
     type: string
     label?: string | null
@@ -1257,9 +1257,9 @@ export default function PaymentsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          {payment.scheduleItems && payment.scheduleItems.length > 0 ? (
+                          {payment.schedule_items && payment.schedule_items.length > 0 ? (
                             <div className="space-y-1">
-                              {payment.scheduleItems.map((item, index) => (
+                              {payment.schedule_items.map((item, index) => (
                                 <div key={item.id} className="flex items-center justify-between">
                                   <div className="font-medium text-sm">{item.period.name}</div>
                                   <div className="text-xs text-muted-foreground">
@@ -1267,9 +1267,9 @@ export default function PaymentsPage() {
                                   </div>
                                 </div>
                               ))}
-                              {payment.scheduleItems.length > 1 && (
+                              {payment.schedule_items.length > 1 && (
                                 <div className="text-xs text-blue-600 font-medium">
-                                  Total: {formatCurrency(payment.scheduleItems.reduce((sum, item) => sum + item.amount, 0))}
+                                  Total: {formatCurrency(payment.schedule_items.reduce((sum, item) => sum + item.amount, 0))}
                                 </div>
                               )}
                             </div>
@@ -1301,7 +1301,7 @@ export default function PaymentsPage() {
                               <DialogHeader>
                                 <DialogTitle>Bukti Transfer - {payment.resident.name}</DialogTitle>
                                 <DialogDescription>
-                                  Pembayaran IPL {payment.scheduleItems && payment.scheduleItems.length > 0 ? `${payment.scheduleItems.length} periode` : 'Tidak ada periode'} • {formatCurrency(payment.amount)}
+                                  Pembayaran IPL {payment.schedule_items && payment.schedule_items.length > 0 ? `${payment.schedule_items.length} periode` : 'Tidak ada periode'} • {formatCurrency(payment.amount)}
                                 </DialogDescription>
                               </DialogHeader>
                               <PaymentProofViewer
