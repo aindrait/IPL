@@ -9,7 +9,7 @@ async function testConnection() {
   
   // Set environment variables
   if (vercelEnv.parsed) {
-    process.env.POSTGRES_PRISMA_URL = vercelEnv.parsed.POSTGRES_PRISMA_URL;
+    process.env.DATABASE_URL = vercelEnv.parsed.DATABASE_URL;
     process.env.DATABASE_URL = vercelEnv.parsed.DATABASE_URL;
   }
   
@@ -19,7 +19,7 @@ async function testConnection() {
   const { Client } = require('pg');
   
   // Modify connection string to handle SSL issues
-  let connectionString = process.env.POSTGRES_PRISMA_URL;
+  let connectionString = process.env.DATABASE_URL;
   if (connectionString.includes('sslmode=require')) {
     connectionString = connectionString.replace('sslmode=require', 'sslmode=no-verify');
   }
@@ -33,7 +33,7 @@ async function testConnection() {
   
   try {
     // Log the connection string (without password)
-    const connectionString = process.env.POSTGRES_PRISMA_URL;
+    const connectionString = process.env.DATABASE_URL;
     console.log('🔗 Connection string (masked):', connectionString.replace(/:[^:]*@/, ':***@'));
     
     // Test basic connection
